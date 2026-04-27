@@ -153,21 +153,4 @@ async def process_claims_endpoint(
     # Process
     try:
         processed_rows = process_claims(brain, registry)
-    except MissingSourceColumnError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        log.exception("Processing pipeline failed")
-        raise HTTPException(status_code=500, detail=f"Processing error: {exc}")
-
-    # Write output Excel
-    try:
-        excel_bytes = write_output_excel(processed_rows, brain)
-    except Exception as exc:
-        log.exception("Output generation failed")
-        raise HTTPException(status_code=500, detail=f"Output generation error: {exc}")
-
-    return Response(
-        content=excel_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=OutputFile_Generated.xlsx"},
-    )
+    except MissingSourceCo
