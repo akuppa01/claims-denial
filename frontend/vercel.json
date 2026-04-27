@@ -1,6 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "tanstack-start",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".output"
+  "experimentalServices": {
+    "web": {
+      "entrypoint": ".",
+      "routePrefix": "/",
+      "framework": "tanstack-start"
+    }
+  }
 }
