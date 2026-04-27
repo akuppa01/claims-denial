@@ -6,7 +6,13 @@
       "Bash(python3 -m pytest tests/ -v)",
       "Bash(python3 -)",
       "Read(//Users/adi/Desktop/Coding/Misc/**)",
-      "Read(//Users/adi/Desktop/**)"
+      "Read(//Users/adi/Desktop/**)",
+      "Bash(python3)",
+      "Bash(python3 -m pytest tests/ -q)",
+      "Bash(git add *)",
+      "Bash(uvicorn app.main:app --reload --port 8000)",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/process-claims -F denial_records=@DenialRecords_Populated.xlsx -F contracts_data=@ContractsData_Populated.xlsx -F customer_master=@CustomerMasterRecords_Populated.xlsx -F material_master=@MaterialMasterRecords_Populated.xlsx -F pricing_data=@PricingData_Populated.xlsx -F rules_brain=@/Users/adi/Downloads/Claims_AI_Rules_Brain_Renewed.xlsx --output OutputFile_Generated.xlsx -w '\\\\nHTTP %{http_code} | %{size_download} bytes | %{time_total}s\\\\n')"
     ]
   }
 }
