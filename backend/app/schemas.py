@@ -30,6 +30,8 @@ class ScenarioConfig(BaseModel):
     secondary_join_keys: list[str] = Field(default_factory=list)
     duplicate_match_strategy: str = "manual_review"   # "manual_review" | "first"
     default_agent_status_no_match: str = "Data Missing"
+    default_recommended_next_action: str = ""
+    primary_source_display: str = ""   # human-readable label for Primary_Source_Checked
 
 
 # ---------------------------------------------------------------------------

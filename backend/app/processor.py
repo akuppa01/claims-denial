@@ -48,6 +48,13 @@ def _safe_str(val: Any) -> str:
     return str(val).strip()
 
 
+def _source_label(scenario: ScenarioConfig) -> str:
+    """Human-readable label for Primary_Source_Checked."""
+    if scenario.primary_source_display:
+        return scenario.primary_source_display
+    return _source_label(scenario)
+
+
 def _unknown_code_row(denial_row: dict, raw_code: str, defaults) -> dict:
     return {
         "Claim_ID": _safe_str(denial_row.get("Claim_ID")),
@@ -86,7 +93,7 @@ def _data_missing_row(denial_row: dict, canonical_code: str, scenario: ScenarioC
         "Claim_ID": _safe_str(denial_row.get("Claim_ID")),
         "Denial_ID": _safe_str(denial_row.get("Denial_ID")),
         "Reason_Code": canonical_code,
-        "Primary_Source_Checked": scenario.primary_source.replace("_", " ").title(),
+        "Primary_Source_Checked": _source_label(scenario),
         "Research_Finding": "No matching source record found.",
         "Recommended_Next_Action": "Verify source data availability and correct record identifiers.",
         "ECC_Update_Type": defaults.ecc_update_type,
@@ -101,7 +108,7 @@ def _duplicate_match_row(denial_row: dict, canonical_code: str, scenario: Scenar
         "Claim_ID": _safe_str(denial_row.get("Claim_ID")),
         "Denial_ID": _safe_str(denial_row.get("Denial_ID")),
         "Reason_Code": canonical_code,
-        "Primary_Source_Checked": scenario.primary_source.replace("_", " ").title(),
+        "Primary_Source_Checked": _source_label(scenario),
         "Research_Finding": (
             f"Duplicate matching source records found ({count} matches). "
             "Cannot determine correct record without manual review."
@@ -114,7 +121,7 @@ def _duplicate_match_row(denial_row: dict, canonical_code: str, scenario: Scenar
     }
 
 
-def _missing_contract_row(denial_row: dict, defaults) -> dict:
+def _missing_contract_row(denial_row: dict, scenario: ScenarioConfig, defaults) -> dict:
     return {
         "Claim_ID": _safe_str(denial_row.get("Claim_ID")),
         "Denial_ID": _safe_str(denial_row.get("Denial_ID")),
@@ -122,12 +129,13 @@ def _missing_contract_row(denial_row: dict, defaults) -> dict:
         "Primary_Source_Checked": "Contract Data",
         "Research_Finding": "No matching contract found.",
         "Recommended_Next_Action": (
-            "Research contract coverage and confirm correct contract assignment."
+            scenario.default_recommended_next_action
+            or "Research contract coverage and confirm correct contract assignment."
         ),
         "ECC_Update_Type": defaults.ecc_update_type,
         "Financial_Posting_Allowed": defaults.financial_posting_allowed,
         "Pricing_Change_Allowed": defaults.pricing_change_allowed,
-        "Agent_Status": "Data Missing",
+        "Agent_Status": scenario.default_agent_status_no_match,
     }
 
 
@@ -173,18 +181,20 @@ def _process_row(
             return out
         join_result = join_denial_to_source(denial_row, source_df, scenario)
         if join_result.status == "no_match":
-            return _missing_contract_row(denial_row, defaults)
-        # Contract was actually found — report accordingly
-        out_row = {
+            return _missing_contract_row(denial_row, scenario, defaults)
+        # Contract was actually found — unexpected; report for manual review
+        return {
             "Claim_ID": _safe_str(denial_row.get("Claim_ID")),
             "Denial_ID": _safe_str(denial_row.get("Denial_ID")),
             "Reason_Code": canonical,
             "Primary_Source_Checked": "Contract Data",
             "Research_Finding": "Matching contract was found in Contract Data.",
             "Recommended_Next_Action": "Review contract assignment and validate claim.",
+            "ECC_Update_Type": defaults.ecc_update_type,
+            "Financial_Posting_Allowed": defaults.financial_posting_allowed,
+            "Pricing_Change_Allowed": defaults.pricing_change_allowed,
             "Agent_Status": "Needs Manual Review",
         }
-        return out_row
 
     # ------------------------------------------------------------------
     # All other scenarios: join then validate
@@ -204,19 +214,26 @@ def _process_row(
     if join_result.status == "duplicate":
         return _duplicate_match_row(denial_row, canonical, scenario, defaults, len(join_result.rows))
 
-    # Merge denial row + matched source row for validation
-    merged = {**join_result.matched_row, **denial_row}
+    # Source fields win so left_field always resolves to the source value.
+    # Denial fields are also stored under "denial_{field}" so rules that
+    # reference DenialRecords.X (parsed to denial_X) still find them.
+    merged = {**denial_row, **join_result.matched_row}
+    for k, v in denial_row.items():
+        merged[f"denial_{k}"] = v
 
     rules = brain.validation_rules.get(canonical, [])
     v_result = evaluate_scenario_rules(rules, merged)
+
+    # Fall back to the scenario's default action when no per-rule action was set
+    recommended_action = v_result.recommended_next_action or scenario.default_recommended_next_action
 
     return {
         "Claim_ID": _safe_str(denial_row.get("Claim_ID")),
         "Denial_ID": _safe_str(denial_row.get("Denial_ID")),
         "Reason_Code": canonical,
-        "Primary_Source_Checked": scenario.primary_source.replace("_", " ").title(),
+        "Primary_Source_Checked": _source_label(scenario),
         "Research_Finding": v_result.research_finding,
-        "Recommended_Next_Action": v_result.recommended_next_action,
+        "Recommended_Next_Action": recommended_action,
         "ECC_Update_Type": defaults.ecc_update_type,
         "Financial_Posting_Allowed": defaults.financial_posting_allowed,
         "Pricing_Change_Allowed": defaults.pricing_change_allowed,

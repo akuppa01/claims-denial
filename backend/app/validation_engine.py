@@ -165,6 +165,31 @@ def _evaluate_rule(rule: ValidationRule, record: dict) -> RuleResult:
             tol = rule.tolerance if rule.tolerance is not None else 0.0
             passed = abs(lf - rf) <= tol
 
+        elif op == "equals_if_present":
+            # Skip the check entirely when left field is absent/blank
+            if _is_blank(left_raw):
+                passed = True
+            else:
+                passed = str(left_raw or "").strip() == str(right_resolved or "").strip()
+
+        elif op == "between_dates_if_present":
+            # right_field_or_value = "start_canonical_field,end_canonical_field"
+            parts = (right_raw or "").split(",")
+            if len(parts) != 2:
+                raise ValueError("between_dates_if_present requires 'start_field,end_field'")
+            start_raw_val = _val(record, parts[0].strip())
+            end_raw_val = _val(record, parts[1].strip())
+            # Skip when any date is absent
+            if _is_blank(left_raw) or _is_blank(start_raw_val) or _is_blank(end_raw_val):
+                passed = True
+            else:
+                start = _to_date(start_raw_val)
+                end = _to_date(end_raw_val)
+                check = _to_date(left_raw)
+                if any(x is None for x in (start, end, check)):
+                    raise ValueError("Could not parse dates for between_dates_if_present")
+                passed = start <= check <= end
+
         else:
             return RuleResult(
                 rule_id=rule.rule_id,
@@ -221,8 +246,18 @@ def evaluate_scenario_rules(
         if not rr.passed or rr.error:
             result.agent_status = "Needs Manual Review"
 
-    result.research_finding = " | ".join(f for f in findings if f)
-    result.recommended_next_action = " | ".join(a for a in actions if a)
+    # Deduplicate while preserving order (first occurrence wins)
+    def _dedup(items: list[str]) -> str:
+        seen: set[str] = set()
+        unique = [x for x in items if x and x not in seen and not seen.add(x)]  # type: ignore[func-returns-value]
+        return " | ".join(unique)
+
+    result.research_finding = _dedup(findings)
+    result.recommended_next_action = _dedup(actions)
+
+    # Ensure successful rows always carry a non-empty finding
+    if result.agent_status == "Ready for ECC Research Note" and not result.research_finding:
+        result.research_finding = "All validation checks passed."
 
     if not rules:
         # No configured validation rules for this scenario
