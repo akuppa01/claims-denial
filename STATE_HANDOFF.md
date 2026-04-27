@@ -4,9 +4,9 @@
 
 - Repo: `claims-denial`
 - Branch: `main`
-- Date: `2026-04-26`
+- Date: `2026-04-27`
 - App shape: monorepo with FastAPI backend and Lovable-generated React + Vite frontend
-- Current status: root one-command local run is in place and end-to-end processing was re-verified with real Excel inputs without changing business logic
+- Current status: local run still works, Vercel deployment support was added, the standalone frontend and standalone backend deployments are working, and the original Services-mode project still has a root-route issue
 
 ## Top-Level Structure
 
@@ -105,6 +105,29 @@ fetch(`${API_BASE_URL}/process-claims`, {
 - Successful responses are handled as blob downloads for `OutputFile_Generated.xlsx`
 - Error responses are read and surfaced to the UI before any download attempt
 
+## Vercel Facts
+
+- Vercel account used during deployment: `akuppa01`
+- Vercel scope/team used: `aditya-ks-projects-89027c29`
+- Relevant Vercel projects discovered during this work:
+  - `claims-denial`
+  - `frontend`
+  - `claims-denial-api`
+- Working deployed frontend:
+  - [https://frontend-chi-green-15.vercel.app](https://frontend-chi-green-15.vercel.app)
+- Working deployed backend:
+  - [https://claims-denial-api.vercel.app](https://claims-denial-api.vercel.app)
+- Verified backend health endpoint:
+  - [https://claims-denial-api.vercel.app/health](https://claims-denial-api.vercel.app/health)
+- Verified frontend proxy health endpoint:
+  - [https://frontend-chi-green-15.vercel.app/api/health](https://frontend-chi-green-15.vercel.app/api/health)
+- Important caveat:
+  - the existing `claims-denial` Vercel project is configured with `Framework Preset: Services`
+  - that project now builds successfully, including frontend Nitro output and backend Python output
+  - however [https://claims-denial.vercel.app](https://claims-denial.vercel.app) still returns `404` at `/`
+  - meanwhile [https://claims-denial.vercel.app/api/health](https://claims-denial.vercel.app/api/health) works
+  - treat `frontend-chi-green-15.vercel.app` as the currently working hosted UI unless/until the Services routing issue is resolved
+
 ## Integration Fixes Applied
 
 ### Backend
@@ -125,13 +148,28 @@ fetch(`${API_BASE_URL}/process-claims`, {
 FRONTEND_CORS_ORIGINS=https://your-frontend.example.com
 ```
 
+- Added Vercel Python entrypoints:
+  - `backend/server.py`
+  - `backend/api/index.py`
+- Added backend Vercel routing/config file:
+  - `backend/vercel.json`
+- Backend standalone Vercel deployment now works with explicit rewrites and a Python function include-files rule
+
 ### Frontend
 
 - Replaced relative `"/process-claims"` fetch with env-driven backend URL
 - Added explicit helper logic for:
   - cleaner FastAPI error extraction
   - consistent Excel blob download behavior
-- Kept existing UX and business flow intact
+- Updated production fallback API base to `"/api"` so same-origin proxying works in hosted environments
+- Rebuilt `frontend/src/routes/index.tsx` into a simpler deployment-safe upload/review/run flow after Vercel route parsing issues surfaced
+- Restored placeholder/iCloud-dataless frontend files that were breaking builds:
+  - `frontend/package.json`
+  - `frontend/vite.config.ts`
+- Replaced the frontend Vite config with an explicit Vercel-compatible TanStack Start + Nitro setup
+- Added frontend Vercel routing/config file:
+  - `frontend/vercel.json`
+  - rewrites `/api/:path*` to `https://claims-denial-api.vercel.app/:path*`
 
 ### Root Repo
 
@@ -140,6 +178,7 @@ FRONTEND_CORS_ORIGINS=https://your-frontend.example.com
   - `npm run setup` to install backend and frontend dependencies
 - Added root `README.md` with one-command run instructions
 - Added root `.gitignore` so local runtime artifacts do not get committed
+- Added root `vercel.json` for the original Services-mode Vercel deployment path
 
 ## Verification Completed
 
@@ -165,7 +204,7 @@ cd frontend
 npm run build
 ```
 
-- Result: successful build
+- Result: the original local-build notes are now less important than the hosted build path; Vercel builds were repaired successfully after restoring placeholder files and replacing the Vite config
 
 - Frontend lint:
 
@@ -205,6 +244,13 @@ npm run dev
   - this browser surface did not expose file-input upload automation, so the exact upload click path could not be driven there
   - the equivalent live backend multipart request with the same six files was executed successfully
 
+- Hosted verification completed on `2026-04-27`:
+  - `https://claims-denial-api.vercel.app/health` returned JSON health data
+  - `https://frontend-chi-green-15.vercel.app/` returned `HTTP/2 200`
+  - `https://frontend-chi-green-15.vercel.app/api/health` successfully proxied to the backend and returned JSON health data
+  - `https://claims-denial.vercel.app/api/health` also worked
+  - `https://claims-denial.vercel.app/` still returned `HTTP/2 404`
+
 ## Important Constraints
 
 - Do not rewrite the processing pipeline unless explicitly requested
@@ -233,15 +279,35 @@ npm run dev
   - `.DS_Store`
   - `__pycache__/`
   - local `.claude` settings
+- Several frontend files in this workspace were iCloud `dataless` placeholders during deployment work; if a future build behaves as if a file is empty, check file flags first
+- There are now multiple Vercel projects related to this app:
+  - `frontend` is the currently working hosted UI
+  - `claims-denial-api` is the currently working hosted API
+  - `claims-denial` is the original Services project and still needs root-route debugging if the goal is one canonical domain
 
 ## Most Relevant Files
 
 - `backend/app/main.py`
+- `backend/api/index.py`
+- `backend/server.py`
+- `backend/vercel.json`
 - `backend/tests/test_api_integration.py`
 - `package.json`
 - `README.md`
 - `frontend/.env`
+- `frontend/vercel.json`
+- `frontend/vite.config.ts`
 - `frontend/src/routes/index.tsx`
+- `vercel.json`
+
+## Recommended Next Steps
+
+1. If the goal is simply a working hosted app, keep using `frontend-chi-green-15.vercel.app` plus `claims-denial-api.vercel.app`
+2. If the goal is a single canonical domain at `claims-denial.vercel.app`, investigate the Services project routing/output mapping in Vercel rather than the app build itself
+3. If you want a simpler long-term setup, consider keeping two explicit Vercel projects:
+   - one frontend TanStack Start project
+   - one backend Python project
+   with the frontend proxying `/api/*` to the backend
 
 ## Quick Start
 

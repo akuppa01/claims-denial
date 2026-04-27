@@ -1,10 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "experimentalServices": {
-    "web": {
-      "entrypoint": ".",
-      "routePrefix": "/",
-      "framework": "tanstack-start"
+  "framework": "tanstack-start",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://claims-denial-api.vercel.app/:path*"
     }
-  }
+  ]
 }

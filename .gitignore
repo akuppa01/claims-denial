@@ -2,4 +2,5 @@ node_modules/
 __pycache__/
 .DS_Store
 .pytest_cache/
-
+.vercel/
+.vercel
