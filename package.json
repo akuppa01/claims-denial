@@ -1,0 +1,15 @@
+{
+  "name": "claims-denial",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n backend,frontend -c green,blue \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "python3 -m uvicorn app.main:app --reload --port 8000 --app-dir backend",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "install:backend": "python3 -m pip install -r backend/requirements.txt",
+    "install:frontend": "npm --prefix frontend install",
+    "setup": "npm run install:backend && npm run install:frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

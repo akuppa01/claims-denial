@@ -6,12 +6,16 @@
 - Branch: `main`
 - Date: `2026-04-26`
 - App shape: monorepo with FastAPI backend and Lovable-generated React + Vite frontend
-- Current status: frontend/backend upload-download integration is wired and validated without changing business logic
+- Current status: root one-command local run is in place and end-to-end processing was re-verified with real Excel inputs without changing business logic
 
 ## Top-Level Structure
 
 ```text
 Claims Denial/
+├── package.json
+├── package-lock.json
+├── README.md
+├── .gitignore
 ├── backend/
 │   ├── app/
 │   │   ├── main.py
@@ -34,11 +38,17 @@ Claims Denial/
 ## Backend Facts
 
 - Backend entrypoint: `backend/app/main.py`
-- Run command:
+- Direct run command:
 
 ```bash
 cd backend
 uvicorn app.main:app --reload --port 8000
+```
+
+- Root run command:
+
+```bash
+npm run dev
 ```
 
 - Core endpoint: `POST /process-claims`
@@ -58,13 +68,16 @@ uvicorn app.main:app --reload --port 8000
 ## Frontend Facts
 
 - Main screen logic is in `frontend/src/routes/index.tsx`
-- Run commands:
+- Direct run commands:
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+- Frontend local URL is determined by Vite at startup
+- During final verification in this repo, Vite served at `http://localhost:8080`
 
 - Frontend now uses:
 
@@ -101,9 +114,11 @@ fetch(`${API_BASE_URL}/process-claims`, {
   - `http://localhost:3000`
   - `http://localhost:4173`
   - `http://localhost:5173`
+  - `http://localhost:8080`
   - `http://127.0.0.1:3000`
   - `http://127.0.0.1:4173`
   - `http://127.0.0.1:5173`
+  - `http://127.0.0.1:8080`
 - Future deployed frontend domains can be supplied via:
 
 ```bash
@@ -117,6 +132,14 @@ FRONTEND_CORS_ORIGINS=https://your-frontend.example.com
   - cleaner FastAPI error extraction
   - consistent Excel blob download behavior
 - Kept existing UX and business flow intact
+
+### Root Repo
+
+- Added root `package.json` with:
+  - `npm run dev` to start backend and frontend together
+  - `npm run setup` to install backend and frontend dependencies
+- Added root `README.md` with one-command run instructions
+- Added root `.gitignore` so local runtime artifacts do not get committed
 
 ## Verification Completed
 
@@ -154,6 +177,34 @@ npm run lint
 - Result: no errors in the integration changes
 - Remaining lint output is warnings only from pre-existing UI component files about `react-refresh/only-export-components`
 
+- Root run command:
+
+```bash
+cd /path/to/repo
+npm install
+npm run setup
+npm run dev
+```
+
+- Live end-to-end processing verification:
+  - backend started on `http://127.0.0.1:8000`
+  - frontend started from the root command and served locally on `http://localhost:8080`
+  - CORS preflight to `POST /process-claims` succeeded for `http://localhost:8080`
+  - real uploaded input set was processed successfully through `POST /process-claims`
+  - backend returned `OutputFile_Generated.xlsx` with the correct Excel content type and attachment header
+  - generated workbook matched expected output structure:
+    - same 11 columns
+    - same column order
+    - 100 data rows
+    - populated `Processed_Timestamp`
+    - valid-looking `Agent_Status` values
+    - fill styling present on `Agent_Status`
+
+- Note on browser automation:
+  - the in-app browser was able to open and inspect the frontend
+  - this browser surface did not expose file-input upload automation, so the exact upload click path could not be driven there
+  - the equivalent live backend multipart request with the same six files was executed successfully
+
 ## Important Constraints
 
 - Do not rewrite the processing pipeline unless explicitly requested
@@ -170,7 +221,7 @@ npm run lint
 
 1. Confirm backend is running on port `8000`
 2. Confirm frontend `VITE_API_BASE_URL` points to that backend
-3. Confirm CORS origin is included if testing from a non-localhost deployed frontend
+3. Confirm the actual Vite local port is included in CORS if it is not one of the defaults
 4. If upload/download breaks, inspect `frontend/src/routes/index.tsx` and `backend/app/main.py` first
 5. If business results look wrong, start with `rules_brain` parsing and backend tests, not the frontend
 
@@ -187,10 +238,20 @@ npm run lint
 
 - `backend/app/main.py`
 - `backend/tests/test_api_integration.py`
+- `package.json`
+- `README.md`
 - `frontend/.env`
 - `frontend/src/routes/index.tsx`
 
 ## Quick Start
+
+```bash
+npm install
+npm run setup
+npm run dev
+```
+
+Or run the services separately:
 
 ```bash
 cd backend
