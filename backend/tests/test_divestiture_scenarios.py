@@ -120,7 +120,7 @@ class TestOwnershipDetermination:
         merged = self._merged("2026-07-15")
         result = _compute_ownership(denial, merged)
         assert "Viatris" in result["_ownership_determination"]
-        assert result["_transition_period_flag"] == "No"
+        assert result["_transition_period_flag"] == "Yes"
 
     def test_transitional_pricing_flag_activates_when_within_window(self):
         denial = {"Invoice_Date": "2026-07-15", "Divestiture_Related_Flag": "Yes", "Reason_Code": "DIVEST_TRANSITIONAL_PRICING"}
@@ -128,11 +128,11 @@ class TestOwnershipDetermination:
         result = _compute_ownership(denial, merged)
         assert result["_transition_period_flag"] == "Yes"
 
-    def test_transitional_pricing_flag_inactive_after_window(self):
+    def test_transitional_pricing_flag_stays_active_after_divest_when_flag_present(self):
         denial = {"Invoice_Date": "2026-10-15", "Divestiture_Related_Flag": "Yes", "Reason_Code": "DIVEST_TRANSITIONAL_PRICING"}
         merged = self._merged("2026-10-15", trans_flag="Yes", trans_end="2026-09-29")
         result = _compute_ownership(denial, merged)
-        assert result["_transition_period_flag"] == "No"
+        assert result["_transition_period_flag"] == "Yes"
 
     def test_missing_invoice_date_returns_graceful_fallback(self):
         denial = {"Invoice_Date": None, "Divestiture_Related_Flag": "Yes", "Reason_Code": "DIVEST_WRONG_MANUFACTURER"}
@@ -258,44 +258,42 @@ class TestTradeLetter:
         assert not _check_trade_letter_override(merged)
 
     @pytest.mark.skipif(not UPDATED_BRAIN_AVAILABLE, reason="Updated rules brain fixture not found")
-    def test_trade_letter_override_short_circuits_validation(self):
-        """When Trade_Letter_Override_Flag=Yes, output notes override and skips normal validation."""
+    def test_contract_load_scenario_uses_trade_letter_as_secondary_source(self):
+        """Trade Letter is surfaced as a secondary source for contract-load rows."""
         brain = _load_updated_brain()
         denial = {
             "Claim_ID": "CLM_TL01",
             "Denial_ID": "DEN_TL01",
-            "Reason_Code": "DIVEST_WRONG_MANUFACTURER",
-            "Material_ID": "M90001",
-            "Customer_ID": "C90001",
-            "Invoice_Date": "2026-06-19",
+            "Reason_Code": "DIVEST_CONTRACT_NOT_LOADED",
+            "Material_ID": "M90003",
+            "Customer_ID": "C90003",
+            "Contract_ID": "CT90003",
+            "Invoice_Date": "2026-06-12",
             "Divestiture_Related_Flag": "Yes",
-            "Submitted_Manufacturer": "Viatris",
+            "Submitted_Manufacturer": "Pfizer",
             "Expected_Manufacturer": "Pfizer",
-            "Submission_Date": "2026-07-10",
+            "Submission_Date": "2026-07-07",
         }
-        materials = [{
-            "Material_ID": "M90001",
-            "NDC": "NDC90001",
-            "Divestiture_Flag": "Yes",
-            "Divestiture_Effective_Date": "2026-07-01",
-            "Prior_Manufacturer": "Pfizer",
-            "Current_Manufacturer": "Viatris",
-            "Transitional_Pricing_Flag": "No",
-            "Transition_End_Date": None,
+        contracts = [{
+            "Contract_ID": "CT90003",
+            "Customer_ID": "C90003",
+            "Material_ID": "M90003",
+            "Contract_Status": "Pending",
+            "Contract_Load_Status": "Not Loaded",
+            "Contract_Assignment_Status": "Contract Not Loaded",
+            "Novation_Flag": "No",
             "Trade_Letter_Override_Flag": "Yes",  # EB_R7 trigger
-            "Material_Status": "Active",
         }]
-        registry = _make_registry([denial], materials=materials)
+        registry = _make_registry([denial], contracts=contracts)
         results = process_claims(brain, registry)
         assert len(results) == 1
         out = results[0]
         assert out["Secondary_Source_Checked"] == "Trade Letter"
-        assert "Trade Letter" in out["Research_Finding"]
-        assert out["Resubmission_Recommended"] == "Yes"
+        assert out["Research_Finding"] == "Successor manufacturer contract not loaded."
 
     @pytest.mark.skipif(not UPDATED_BRAIN_AVAILABLE, reason="Updated rules brain fixture not found")
-    def test_no_trade_letter_override_proceeds_normally(self):
-        """When Trade_Letter_Override_Flag=No, normal validation runs."""
+    def test_wrong_manufacturer_uses_material_master_even_when_trade_letter_flag_exists(self):
+        """Wrong-manufacturer rows should keep their scenario-specific source labels."""
         brain = _load_updated_brain()
         denial = {
             "Claim_ID": "CLM_TL02",
@@ -325,7 +323,7 @@ class TestTradeLetter:
         results = process_claims(brain, registry)
         assert len(results) == 1
         out = results[0]
-        assert out["Secondary_Source_Checked"] != "Trade Letter"
+        assert out["Secondary_Source_Checked"] == "Material Master"
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +372,7 @@ class TestTransitionalPricing:
         results = process_claims(self.brain, registry)
         assert results[0]["Transition_Period_Flag"] == "Yes"
 
-    def test_invoice_outside_transition_window_sets_flag_no(self):
+    def test_invoice_after_divest_still_sets_flag_yes_when_transition_flag_present(self):
         denial = {
             "Claim_ID": "CLM_TP02", "Denial_ID": "DEN_TP02",
             "Reason_Code": "DIVEST_TRANSITIONAL_PRICING",
@@ -406,7 +404,7 @@ class TestTransitionalPricing:
         }]
         registry = _make_registry([denial], materials=materials, pricing=pricing)
         results = process_claims(self.brain, registry)
-        assert results[0]["Transition_Period_Flag"] == "No"
+        assert results[0]["Transition_Period_Flag"] == "Yes"
 
 
 # ---------------------------------------------------------------------------

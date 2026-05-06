@@ -262,6 +262,12 @@ def _parse_scenarios(
     col_no_match = _find_col(df, "missing", "status")
     col_enabled = _find_col(df, "enabled")
     col_rec_action = _find_col(df, "recommended") or _find_col(df, "default", "action")
+    col_all_pass = _find_col(df, "all", "pass", "outcome") or _find_col(df, "success", "outcome")
+    col_standard_finding = _find_col(df, "standard", "research", "finding")
+    col_standard_details = _find_col(df, "standard", "discrepancy", "details")
+    col_resubmit_action = _find_col(df, "resubmission", "next", "action")
+    col_acceptable_action = _find_col(df, "acceptable", "next", "action")
+    col_secondary_display = _find_col(df, "secondary", "source")
 
     if not col_code or not col_source:
         raise MissingRulesBrainSheetError(
@@ -296,6 +302,13 @@ def _parse_scenarios(
         if col_rec_action:
             default_action = _str(row.get(col_rec_action, ""))
 
+        all_pass_outcome = _str(row.get(col_all_pass, "")) if col_all_pass else ""
+        standard_finding = _str(row.get(col_standard_finding, "")) if col_standard_finding else ""
+        standard_details = _str(row.get(col_standard_details, "")) if col_standard_details else ""
+        resubmit_action = _str(row.get(col_resubmit_action, "")) if col_resubmit_action else ""
+        acceptable_action = _str(row.get(col_acceptable_action, "")) if col_acceptable_action else ""
+        secondary_display = _str(row.get(col_secondary_display, "")) if col_secondary_display else ""
+
         jl = join_logic.get(code, {})
         join_keys = jl.get("join_keys", [])
         secondary_keys = jl.get("secondary_join_keys", [])
@@ -310,6 +323,12 @@ def _parse_scenarios(
             default_agent_status_no_match=no_match_status,
             default_recommended_next_action=default_action,
             primary_source_display=display_name,
+            all_pass_outcome=all_pass_outcome,
+            standard_research_finding=standard_finding,
+            standard_discrepancy_details=standard_details,
+            resubmission_next_action=resubmit_action,
+            acceptable_next_action=acceptable_action,
+            secondary_source_display=secondary_display,
         )
     return scenarios
 
