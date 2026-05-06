@@ -80,6 +80,15 @@ class OutputDefaults(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class DivestitureRule(BaseModel):
+    rule_id: str
+    rule_name: str
+    trigger: str
+    key_logic: str
+    fields_checked: List[str] = Field(default_factory=list)
+    agent_action: str
+
+
 class RulesBrain(BaseModel):
     field_aliases: List[FieldAlias] = Field(default_factory=list)
     scenarios: dict = Field(default_factory=dict)
@@ -87,6 +96,7 @@ class RulesBrain(BaseModel):
     reason_code_map: dict = Field(default_factory=dict)  # variant -> canonical
     output_defaults: OutputDefaults = Field(default_factory=OutputDefaults)
     output_columns: List[str] = Field(default_factory=list)
+    divestiture_rules: List[DivestitureRule] = Field(default_factory=list)
     raw_sheets: dict = Field(default_factory=dict)  # sheet_name -> raw DataFrame
 
     model_config = {"arbitrary_types_allowed": True}

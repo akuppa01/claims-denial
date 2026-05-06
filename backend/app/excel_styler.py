@@ -24,9 +24,12 @@ HEADER_FONT = Font(bold=True)
 
 # Agent_Status fills – subtle, professional
 STATUS_FILLS = {
-    "Ready for ECC Research Note": PatternFill(fill_type="solid", fgColor="FFD6EAD7"),  # soft green
-    "Needs Manual Review":         PatternFill(fill_type="solid", fgColor="FFFFF2CC"),  # soft yellow
-    "Data Missing":                PatternFill(fill_type="solid", fgColor="FFFCE4E4"),  # soft red
+    "Ready for Resubmission Review": PatternFill(fill_type="solid", fgColor="FFD6EAD7"),  # soft green
+    "Closed - Research Complete":    PatternFill(fill_type="solid", fgColor="FFD0E4F7"),  # soft blue
+    "Needs Manual Review":           PatternFill(fill_type="solid", fgColor="FFFFF2CC"),  # soft yellow
+    "Data Missing":                  PatternFill(fill_type="solid", fgColor="FFFCE4E4"),  # soft red
+    # Legacy alias kept for backwards compatibility
+    "Ready for ECC Research Note":   PatternFill(fill_type="solid", fgColor="FFD6EAD7"),  # soft green
 }
 
 CHECK_MARK = "✓"   # ✓  – prepended to finding for clean rows
@@ -76,7 +79,7 @@ def _style_agent_status(worksheet: Worksheet, df: pd.DataFrame) -> None:
             cell.fill = fill
 
         # Optionally prepend ✓ to Research_Finding for successful rows
-        if status_str == "Ready for ECC Research Note" and finding_col_idx:
+        if status_str in ("Ready for Resubmission Review", "Closed - Research Complete", "Ready for ECC Research Note") and finding_col_idx:
             finding_cell = worksheet.cell(row=row_num, column=finding_col_idx)
             raw = str(finding_cell.value or "").strip()
             if raw and not raw.startswith(CHECK_MARK):

@@ -26,6 +26,7 @@ import pandas as pd
 
 from .errors import MissingRulesBrainSheetError
 from .schemas import (
+    DivestitureRule,
     FieldAlias,
     OutputDefaults,
     RulesBrain,
@@ -460,6 +461,42 @@ def _parse_output_defaults(df: Optional[pd.DataFrame]) -> OutputDefaults:
     )
 
 
+def _parse_divestiture_rules(df: Optional[pd.DataFrame]) -> list[DivestitureRule]:
+    """Parse Divestiture_Business_Rules sheet.
+
+    Expected columns: Rule_ID | Rule_Name | Trigger | Key_Logic | Fields_Checked | Agent_Action
+    """
+    if df is None:
+        return []
+
+    col_id = _find_col(df, "rule_id") or _find_col(df, "rule", "id")
+    col_name = _find_col(df, "rule_name") or _find_col(df, "name")
+    col_trigger = _find_col(df, "trigger")
+    col_logic = _find_col(df, "logic") or _find_col(df, "key")
+    col_fields = _find_col(df, "fields")
+    col_action = _find_col(df, "action") or _find_col(df, "agent")
+
+    if not col_id:
+        return []
+
+    rules: list[DivestitureRule] = []
+    for _, row in df.iterrows():
+        rule_id = _str(row.get(col_id, "")) if col_id else ""
+        if not rule_id or rule_id.lower() in ("rule_id", "nan"):
+            continue
+        rules.append(
+            DivestitureRule(
+                rule_id=rule_id,
+                rule_name=_str(row.get(col_name, "")) if col_name else "",
+                trigger=_str(row.get(col_trigger, "")) if col_trigger else "",
+                key_logic=_str(row.get(col_logic, "")) if col_logic else "",
+                fields_checked=_split_semi(row.get(col_fields, "")) if col_fields else [],
+                agent_action=_str(row.get(col_action, "")) if col_action else "",
+            )
+        )
+    return rules
+
+
 def _parse_output_template(df: Optional[pd.DataFrame]) -> list[str]:
     if df is None:
         return DEFAULT_OUTPUT_COLUMNS[:]
@@ -514,6 +551,9 @@ def load_rules_brain(file_bytes: bytes | io.IOBase) -> RulesBrain:
     ot_df = _get_sheet(sheets, lookup, "Output_Template")
     output_columns = _parse_output_template(ot_df) if ot_df is not None else DEFAULT_OUTPUT_COLUMNS[:]
 
+    db_df = _get_sheet(sheets, lookup, "Divestiture_Business_Rules")
+    divestiture_rules = _parse_divestiture_rules(db_df)
+
     return RulesBrain(
         field_aliases=field_aliases,
         scenarios=scenarios,
@@ -521,5 +561,6 @@ def load_rules_brain(file_bytes: bytes | io.IOBase) -> RulesBrain:
         reason_code_map=reason_code_map,
         output_defaults=output_defaults,
         output_columns=output_columns,
+        divestiture_rules=divestiture_rules,
         raw_sheets={k: sheets[k] for k in sheets},
     )
