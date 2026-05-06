@@ -4,9 +4,9 @@
   "scripts": {
     "dev": "concurrently -k -n backend,frontend -c green,blue \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "python3 -m uvicorn app.main:app --reload --port 8000 --app-dir backend",
-    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:frontend": "cd frontend && npm run dev",
     "install:backend": "python3 -m pip install -r backend/requirements.txt",
-    "install:frontend": "npm --prefix frontend install",
+    "install:frontend": "cd frontend && npm install",
     "setup": "npm run install:backend && npm run install:frontend"
   },
   "devDependencies": {

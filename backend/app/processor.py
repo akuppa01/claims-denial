@@ -52,7 +52,7 @@ def _source_label(scenario: ScenarioConfig) -> str:
     """Human-readable label for Primary_Source_Checked."""
     if scenario.primary_source_display:
         return scenario.primary_source_display
-    return _source_label(scenario)
+    return scenario.primary_source.replace("_", " ").title()
 
 
 def _unknown_code_row(denial_row: dict, raw_code: str, defaults) -> dict:
@@ -114,6 +114,24 @@ def _duplicate_match_row(denial_row: dict, canonical_code: str, scenario: Scenar
             "Cannot determine correct record without manual review."
         ),
         "Recommended_Next_Action": "Resolve duplicate source records before processing.",
+        "ECC_Update_Type": defaults.ecc_update_type,
+        "Financial_Posting_Allowed": defaults.financial_posting_allowed,
+        "Pricing_Change_Allowed": defaults.pricing_change_allowed,
+        "Agent_Status": "Needs Manual Review",
+    }
+
+
+def _conflicting_join_keys_row(denial_row: dict, canonical_code: str, scenario: ScenarioConfig, defaults) -> dict:
+    return {
+        "Claim_ID": _safe_str(denial_row.get("Claim_ID")),
+        "Denial_ID": _safe_str(denial_row.get("Denial_ID")),
+        "Reason_Code": canonical_code,
+        "Primary_Source_Checked": _source_label(scenario),
+        "Research_Finding": (
+            "Conflicting identifier values were found between the denial record "
+            "and the matched source record."
+        ),
+        "Recommended_Next_Action": "Review the denial and source identifiers before processing.",
         "ECC_Update_Type": defaults.ecc_update_type,
         "Financial_Posting_Allowed": defaults.financial_posting_allowed,
         "Pricing_Change_Allowed": defaults.pricing_change_allowed,
@@ -213,6 +231,9 @@ def _process_row(
 
     if join_result.status == "duplicate":
         return _duplicate_match_row(denial_row, canonical, scenario, defaults, len(join_result.rows))
+
+    if join_result.status == "conflict":
+        return _conflicting_join_keys_row(denial_row, canonical, scenario, defaults)
 
     # Source fields win so left_field always resolves to the source value.
     # Denial fields are also stored under "denial_{field}" so rules that

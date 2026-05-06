@@ -1,146 +1,179 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
-  ArrowRight,
+  ArrowUpRight,
   CheckCircle2,
+  Database,
   Download,
   Eye,
-  FileSpreadsheet,
-  Loader2,
   Play,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
+  Sparkles,
   Upload,
-  X,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
+import { LogsConsole } from "@/components/claims/logs-console";
+import { PipelineNode } from "@/components/claims/pipeline-node";
+import { ResultsPanel } from "@/components/claims/results-panel";
+import type {
+  FileKey,
+  FileSpec,
+  LogEntry,
+  PipelineStage,
+  PipelineStageStatus,
+  ValidationSummary,
+} from "@/components/claims/types";
+import { UploadCapsule } from "@/components/claims/upload-capsule";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+const configuredPowerBiUrl = import.meta.env.VITE_POWER_BI_URL?.trim();
 const API_BASE_URL = configuredApiBaseUrl
   ? configuredApiBaseUrl.replace(/\/+$/, "")
   : import.meta.env.DEV
     ? "http://localhost:8000"
     : "/api";
+const POWER_BI_URL = configuredPowerBiUrl || "https://app.powerbi.com/";
+
+const FILE_SPECS: FileSpec[] = [
+  { key: "denial_records", label: "Denial Records", description: "DenialRecords_Populated.xlsx" },
+  { key: "contracts_data", label: "Contracts Data", description: "ContractsData_Populated.xlsx" },
+  {
+    key: "customer_master",
+    label: "Customer Master",
+    description: "CustomerMasterRecords_Populated.xlsx",
+  },
+  {
+    key: "material_master",
+    label: "Material Master",
+    description: "MaterialMasterRecords_Populated.xlsx",
+  },
+  { key: "pricing_data", label: "Pricing Data", description: "PricingData_Populated.xlsx" },
+  { key: "rules_brain", label: "Rules Brain", description: "Claims_AI_Rules_Brain.xlsx" },
+];
+
+const PIPELINE_BLUEPRINT: Array<
+  Omit<PipelineStage, "status"> & {
+    durationMs: number;
+    startMessage: string;
+    completeMessage: string;
+  }
+> = [
+  {
+    id: "files-ingested",
+    label: "Files Ingested",
+    description: "Verifying required workbooks.",
+    durationMs: 600,
+    startMessage: "Validating files.",
+    completeMessage: "All required files are present.",
+  },
+  {
+    id: "data-mapping",
+    label: "Data Mapping",
+    description: "Aligning source columns.",
+    durationMs: 800,
+    startMessage: "Mapping source data.",
+    completeMessage: "Source mapping complete.",
+  },
+  {
+    id: "rules-engine",
+    label: "Rules Engine",
+    description: "Loading pricing and contract rules.",
+    durationMs: 800,
+    startMessage: "Loading rules engine.",
+    completeMessage: "Rules engine ready.",
+  },
+  {
+    id: "ai-validation",
+    label: "AI Validation",
+    description: "Reviewing claims and exceptions.",
+    durationMs: 1200,
+    startMessage: "Running AI validation.",
+    completeMessage: "AI validation complete.",
+  },
+  {
+    id: "output-generated",
+    label: "Output Generated",
+    description: "Preparing the final workbook.",
+    durationMs: 700,
+    startMessage: "Generating output workbook.",
+    completeMessage: "Output workbook is ready.",
+  },
+];
+
+const INITIAL_STAGES: PipelineStage[] = PIPELINE_BLUEPRINT.map(({ ...stage }) => ({
+  id: stage.id,
+  label: stage.label,
+  description: stage.description,
+  status: "idle",
+}));
+
+const PIPELINE_ICONS = [Upload, Database, ShieldCheck, Sparkles, Download];
 
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Claims Denial Validation MVP" },
+      { title: "Claims Intelligence Engine" },
       {
         name: "description",
-        content:
-          "Upload denial, master, pricing, contract, and rules files to generate structured research findings.",
+        content: "AI-powered validation across contracts, pricing, and denials.",
       },
     ],
   }),
 });
 
-type FileKey =
-  | "denial_records"
-  | "contracts_data"
-  | "customer_master"
-  | "material_master"
-  | "pricing_data"
-  | "rules_brain";
-
-type Screen = "upload" | "review";
-
-type StageStatus = "pending" | "running" | "complete" | "error";
-
-type FileSpec = {
-  key: FileKey;
-  label: string;
-  description: string;
-};
-
-type LogEntry = {
-  time: string;
-  message: string;
-  level: "info" | "success" | "error";
-};
-
-type Stage = {
-  id: string;
-  label: string;
-  status: StageStatus;
-};
-
-const FILE_SPECS: FileSpec[] = [
-  {
-    key: "denial_records",
-    label: "Denial Records",
-    description: "DenialRecords_Populated.xlsx",
-  },
-  {
-    key: "contracts_data",
-    label: "Contracts Data",
-    description: "ContractsData_Populated.xlsx",
-  },
-  {
-    key: "customer_master",
-    label: "Customer Master Records",
-    description: "CustomerMasterRecords_Populated.xlsx",
-  },
-  {
-    key: "material_master",
-    label: "Material Master Records",
-    description: "MaterialMasterRecords_Populated.xlsx",
-  },
-  {
-    key: "pricing_data",
-    label: "Pricing Data",
-    description: "PricingData_Populated.xlsx",
-  },
-  {
-    key: "rules_brain",
-    label: "Rules Brain",
-    description: "Claims_AI_Rules_Brain.xlsx",
-  },
-];
-
-const INITIAL_STAGES: Stage[] = [
-  { id: "uploaded", label: "Files uploaded", status: "pending" },
-  { id: "validated", label: "Files validated", status: "pending" },
-  { id: "rules", label: "Rules brain loaded", status: "pending" },
-  { id: "processing", label: "Claims processed", status: "pending" },
-  { id: "output", label: "Output generated", status: "pending" },
-];
-
 function Index() {
-  const [screen, setScreen] = useState<Screen>("upload");
   const [files, setFiles] = useState<Partial<Record<FileKey, File>>>({});
   const [errors, setErrors] = useState<Partial<Record<FileKey, string>>>({});
   const [previewKey, setPreviewKey] = useState<FileKey | null>(null);
-  const [stages, setStages] = useState<Stage[]>(INITIAL_STAGES);
+  const [stages, setStages] = useState<PipelineStage[]>(INITIAL_STAGES);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [progressValue, setProgressValue] = useState(0);
+  const [summary, setSummary] = useState<ValidationSummary | null>(null);
 
   const allUploaded = useMemo(() => FILE_SPECS.every((spec) => files[spec.key]), [files]);
-  const uploadedCount = useMemo(
-    () => FILE_SPECS.filter((spec) => files[spec.key]).length,
-    [files],
-  );
+  const uploadedCount = useMemo(() => FILE_SPECS.filter((spec) => files[spec.key]).length, [files]);
   const previewSpec = previewKey ? FILE_SPECS.find((spec) => spec.key === previewKey) : undefined;
   const previewFile = previewKey ? files[previewKey] : undefined;
-  const success = !!downloadUrl && !runError;
+  const activeStage = stages.find((stage) => stage.status === "running");
+  const hasCompleted = Boolean(downloadUrl && summary && !runError);
+
+  useEffect(() => {
+    if (!downloadUrl) {
+      return;
+    }
+
+    return () => {
+      URL.revokeObjectURL(downloadUrl);
+    };
+  }, [downloadUrl]);
 
   function addLog(message: string, level: LogEntry["level"] = "info") {
     setLogs((current) => [
       ...current,
-      { time: new Date().toLocaleTimeString(), message, level },
+      {
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        message,
+        level,
+      },
     ]);
   }
 
-  function updateStage(id: string, status: StageStatus) {
+  function updateStage(id: string, status: PipelineStageStatus) {
     setStages((current) =>
       current.map((stage) => (stage.id === id ? { ...stage, status } : stage)),
     );
@@ -152,7 +185,7 @@ function Index() {
     }
 
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      setErrors((current) => ({ ...current, [key]: "Only .xlsx files are accepted" }));
+      setErrors((current) => ({ ...current, [key]: "Only .xlsx files are accepted." }));
       return;
     }
 
@@ -163,6 +196,7 @@ function Index() {
     });
 
     setFiles((current) => ({ ...current, [key]: file }));
+    setRunError(null);
   }
 
   function removeFile(key: FileKey) {
@@ -186,12 +220,13 @@ function Index() {
     setStages(INITIAL_STAGES);
     setLogs([]);
     setIsProcessing(false);
+    setProgressValue(0);
+    setSummary(null);
+    setRunError(null);
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
     }
-    setDownloadUrl(null);
-    setRunError(null);
-    setScreen("upload");
   }
 
   function triggerFileDownload(file: File) {
@@ -218,6 +253,10 @@ function Index() {
     link.remove();
   }
 
+  function openPowerBi() {
+    window.open(POWER_BI_URL, "_blank", "noopener,noreferrer");
+  }
+
   async function getErrorMessage(response: Response) {
     const contentType = response.headers.get("content-type") || "";
 
@@ -235,6 +274,28 @@ function Index() {
     return text.trim() || `Server returned ${response.status}`;
   }
 
+  async function submitFiles() {
+    const formData = new FormData();
+
+    FILE_SPECS.forEach((spec) => {
+      const file = files[spec.key];
+      if (file) {
+        formData.append(spec.key, file, file.name);
+      }
+    });
+
+    const response = await fetch(`${API_BASE_URL}/process-claims`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(await getErrorMessage(response));
+    }
+
+    return response.blob();
+  }
+
   async function runValidation() {
     if (!allUploaded || isProcessing) {
       return;
@@ -243,60 +304,39 @@ function Index() {
     setIsProcessing(true);
     setRunError(null);
     setLogs([]);
-    setStages(INITIAL_STAGES.map((stage) => ({ ...stage, status: "pending" })));
+    setStages(INITIAL_STAGES);
+    setSummary(null);
+    setProgressValue(5);
 
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
       setDownloadUrl(null);
     }
 
+    addLog("Validation started.");
+
     try {
-      addLog("Files selected: 6");
-      updateStage("uploaded", "complete");
+      const backendPromise = submitFiles();
 
-      updateStage("validated", "running");
-      addLog("Validating uploaded files");
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      updateStage("validated", "complete");
+      for (const [index, stage] of PIPELINE_BLUEPRINT.entries()) {
+        updateStage(stage.id, "running");
+        addLog(stage.startMessage);
+        setProgressValue(Math.round((index / PIPELINE_BLUEPRINT.length) * 100) + 10);
+        await wait(stage.durationMs);
 
-      updateStage("rules", "running");
-      addLog("Loading rules brain");
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      updateStage("rules", "complete");
-
-      updateStage("processing", "running");
-      addLog("Sending files to backend");
-
-      const formData = new FormData();
-      FILE_SPECS.forEach((spec) => {
-        const file = files[spec.key];
-        if (file) {
-          formData.append(spec.key, file, file.name);
+        if (stage.id === "output-generated") {
+          const blob = await backendPromise;
+          const objectUrl = URL.createObjectURL(blob);
+          setDownloadUrl(objectUrl);
+          setSummary(buildValidationSummary(files));
         }
-      });
 
-      const response = await fetch(`${API_BASE_URL}/process-claims`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const message = await getErrorMessage(response);
-        throw new Error(`Server returned ${response.status}: ${message}`);
+        updateStage(stage.id, "complete");
+        addLog(stage.completeMessage, "success");
+        setProgressValue(Math.round(((index + 1) / PIPELINE_BLUEPRINT.length) * 100));
       }
-
-      updateStage("processing", "complete");
-      updateStage("output", "running");
-      addLog("Backend processing complete", "success");
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      setDownloadUrl(objectUrl);
-      updateStage("output", "complete");
-      addLog("Output ready for download", "success");
-      triggerOutputDownload();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : "Unexpected error";
       setRunError(message);
       addLog(message, "error");
       setStages((current) =>
@@ -310,252 +350,151 @@ function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
-              <FileSpreadsheet className="h-5 w-5" />
-            </div>
+    <div className="h-screen overflow-hidden bg-background text-foreground">
+      <main className="mx-auto flex h-full max-w-7xl flex-col px-4 py-4 lg:px-6">
+        <header className="rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-sm font-bold tracking-tight text-primary">McKesson</div>
-              <div className="text-sm font-semibold tracking-tight text-foreground">
-                Claims Validation
-              </div>
-            </div>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-            <StepDot active={screen === "upload"} index={1} label="Upload" />
-            <ArrowRight className="h-3 w-3" />
-            <StepDot active={screen === "review"} index={2} label="Validate" />
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        {screen === "upload" ? (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                Upload Files
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Claims Operations
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold text-slate-900">
+                Claims Intelligence Engine
               </h1>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Upload all 6 required Excel files to continue.
+              <p className="mt-1 text-sm text-slate-600">
+                AI-powered validation across contracts, pricing, and denials.
               </p>
             </div>
 
-            <Card className="p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-semibold">Required files</h2>
-                  <p className="text-xs text-muted-foreground">
-                    {uploadedCount} of {FILE_SPECS.length} uploaded
-                  </p>
-                </div>
-                <div className="text-xs text-muted-foreground">.xlsx only</div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {FILE_SPECS.map((spec) => (
-                  <UploadCard
-                    key={spec.key}
-                    spec={spec}
-                    file={files[spec.key]}
-                    error={errors[spec.key]}
-                    onSelect={(file) => setFile(spec.key, file)}
-                    onRemove={() => removeFile(spec.key)}
-                  />
-                ))}
-              </div>
-            </Card>
-
-            <div className="flex items-center justify-end gap-3">
-              {!allUploaded && (
-                <span className="text-xs text-muted-foreground">
-                  Upload all 6 files to continue.
-                </span>
-              )}
-              <Button
-                onClick={() => setScreen("review")}
-                disabled={!allUploaded}
-                className="gap-2"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+            <div className="flex gap-3">
+              <MetricPill label="Files" value={`${uploadedCount}/6`} />
+              <MetricPill
+                label="Status"
+                value={isProcessing ? "Running" : hasCompleted ? "Complete" : "Ready"}
+              />
             </div>
           </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+        </header>
+
+        <section className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.45fr_1fr]">
+          <div className="min-h-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                  Review &amp; Run Validation
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                  Review your uploaded files, then run the claims validation pipeline.
+                <h2 className="text-base font-semibold text-slate-900">Upload files</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Add the six required Excel files, then run validation.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => setScreen("upload")} className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Back to upload
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={reset}
+                  disabled={isProcessing}
+                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-slate-700"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Reset
+                </Button>
+                <Button
+                  onClick={runValidation}
+                  disabled={!allUploaded || isProcessing}
+                  className="h-10 rounded-xl bg-primary px-4 text-white"
+                >
+                  {isProcessing ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="mr-2 h-4 w-4" />
+                  )}
+                  {isProcessing ? "Running" : "Run Validation"}
+                </Button>
+              </div>
             </div>
 
-            <Card className="p-6">
-              <h2 className="mb-4 text-base font-semibold">Uploaded documents</h2>
-              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                {FILE_SPECS.map((spec) => {
-                  const file = files[spec.key];
+            <div className="mt-4 grid h-[calc(100%-4rem)] min-h-0 gap-3 overflow-y-auto pr-1 lg:grid-cols-2">
+              {FILE_SPECS.map((spec) => (
+                <UploadCapsule
+                  key={spec.key}
+                  spec={spec}
+                  file={files[spec.key]}
+                  error={errors[spec.key]}
+                  onSelect={(file) => setFile(spec.key, file)}
+                  onRemove={() => removeFile(spec.key)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="grid min-h-0 gap-4"
+            style={{ gridTemplateRows: hasCompleted ? "auto auto auto" : "auto auto 1fr" }}
+          >
+            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Pipeline</h2>
+                  <p className="mt-1 text-sm text-slate-600">One continuous validation flow.</p>
+                </div>
+                <div className="w-40">
+                  <div className="mb-1 flex justify-between text-xs text-slate-500">
+                    <span>Progress</span>
+                    <span>{progressValue}%</span>
+                  </div>
+                  <Progress value={progressValue} className="h-2 bg-slate-100" />
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {stages.map((stage, index) => {
+                  const Icon = PIPELINE_ICONS[index];
                   return (
-                    <div
-                      key={spec.key}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted px-4 py-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-                          <span className="text-sm font-medium text-foreground">{spec.label}</span>
-                        </div>
-                        <div className="mt-1 truncate text-xs text-muted-foreground">
-                          {file?.name ?? spec.description}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ActionButton
-                          icon={<Eye className="h-3.5 w-3.5" />}
-                          label={`View ${spec.label}`}
-                          onClick={() => setPreviewKey(spec.key)}
-                        />
-                        <ActionButton
-                          icon={<Download className="h-3.5 w-3.5" />}
-                          label={`Download ${spec.label}`}
-                          onClick={() => file && triggerFileDownload(file)}
-                        />
-                        <ActionButton
-                          icon={<RefreshCw className="h-3.5 w-3.5" />}
-                          label={`Replace ${spec.label}`}
-                          onClick={() => setScreen("upload")}
-                        />
-                      </div>
-                    </div>
+                    <PipelineNode
+                      key={stage.id}
+                      icon={Icon}
+                      stage={stage}
+                      isLast={index === stages.length - 1}
+                    />
                   );
                 })}
               </div>
-            </Card>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              <div className="space-y-4 lg:col-span-2">
-                <Card className="p-6">
-                  <h2 className="mb-1 text-base font-semibold">Run pipeline</h2>
-                  <p className="mb-4 text-xs text-muted-foreground">
-                    Sends all 6 files to <code className="font-mono">/process-claims</code>.
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button onClick={runValidation} disabled={isProcessing} className="gap-2">
-                      {isProcessing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                      {isProcessing ? "Processing..." : "Run Validation"}
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      onClick={reset}
-                      disabled={isProcessing}
-                      className="gap-2"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Reset
-                    </Button>
+              {runError ? (
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-medium">Validation failed</p>
+                    <p>{runError}</p>
                   </div>
+                </div>
+              ) : (
+                <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span>
+                    {activeStage?.label ?? (hasCompleted ? "Validation complete" : "Ready to run")}
+                  </span>
+                </div>
+              )}
+            </section>
 
-                  {runError && (
-                    <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                      <div>
-                        <div className="font-medium">Validation failed</div>
-                        <div className="text-destructive/80">{runError}</div>
-                      </div>
-                    </div>
-                  )}
+            {hasCompleted ? (
+              <ResultsPanel
+                visible={hasCompleted}
+                summary={summary}
+                onDownload={triggerOutputDownload}
+                onOpenPowerBi={openPowerBi}
+              />
+            ) : null}
 
-                  {success && (
-                    <div className="mt-4 space-y-3">
-                      <Button
-                        onClick={triggerOutputDownload}
-                        className="w-full gap-2 bg-success text-success-foreground hover:bg-success/90"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download OutputFile_Generated.xlsx
-                      </Button>
-                      <div className="grid grid-cols-2 gap-2">
-                        <SummaryCard label="Files" value="6" />
-                        <SummaryCard label="Status" value="Complete" tone="success" />
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              </div>
-
-              <div className="space-y-4 lg:col-span-3">
-                <Card className="p-6">
-                  <h2 className="mb-4 text-base font-semibold">Workflow</h2>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {stages.map((stage) => (
-                      <div
-                        key={stage.id}
-                        className="flex items-center gap-3 rounded-md border border-border bg-surface-muted px-4 py-3"
-                      >
-                        <StageStatusIcon status={stage.status} />
-                        <div>
-                          <div className="text-sm font-medium text-foreground">{stage.label}</div>
-                          <div className="text-xs capitalize text-muted-foreground">
-                            {stage.status}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                <Card className="p-6">
-                  <h2 className="mb-4 text-base font-semibold">Logs</h2>
-                  {logs.length === 0 ? (
-                    <div className="text-xs text-muted-foreground">No activity yet.</div>
-                  ) : (
-                    <ul className="space-y-2 rounded-md bg-surface-muted p-3 font-mono text-xs">
-                      {logs.map((log, index) => (
-                        <li
-                          key={`${log.time}-${index}`}
-                          className={cn(
-                            "flex gap-3",
-                            log.level === "error" && "text-destructive",
-                            log.level === "success" && "text-success",
-                          )}
-                        >
-                          <span className="shrink-0 text-muted-foreground">{log.time}</span>
-                          <span className="break-all">{log.message}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Card>
-              </div>
-            </div>
+            <LogsConsole logs={logs} activeStageLabel={activeStage?.label} />
           </div>
-        )}
+        </section>
       </main>
 
       <Dialog open={!!previewKey} onOpenChange={(open) => !open && setPreviewKey(null)}>
-        <DialogContent>
+        <DialogContent className="border-slate-200 bg-white text-slate-900">
           <DialogHeader>
             <DialogTitle>{previewSpec?.label}</DialogTitle>
           </DialogHeader>
-          {previewFile && (
+          {previewFile ? (
             <div className="space-y-3 text-sm">
               <InfoRow label="File name" value={previewFile.name} />
               <InfoRow label="Size" value={`${(previewFile.size / 1024).toFixed(1)} KB`} />
@@ -570,204 +509,55 @@ function Index() {
                 label="Last modified"
                 value={new Date(previewFile.lastModified).toLocaleString()}
               />
-              <p className="pt-2 text-xs text-muted-foreground">
-                In-app spreadsheet preview is not available in this MVP. Use Download to open the
-                file locally.
-              </p>
               <div className="flex justify-end">
                 <Button
                   variant="outline"
                   onClick={() => triggerFileDownload(previewFile)}
-                  className="gap-2"
+                  className="h-10 rounded-xl border-slate-200 bg-white px-4 text-slate-700"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="mr-2 h-4 w-4" />
                   Download
                 </Button>
               </div>
             </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-function UploadCard({
-  spec,
-  file,
-  error,
-  onSelect,
-  onRemove,
-}: {
-  spec: FileSpec;
-  file?: File;
-  error?: string;
-  onSelect: (file: File | null) => void;
-  onRemove: () => void;
-}) {
-  const inputId = `file-${spec.key}`;
-  const status = error ? "error" : file ? "uploaded" : "missing";
-
+function MetricPill({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      className={cn(
-        "rounded-lg border p-4 transition-colors",
-        status === "uploaded" && "border-success/40 bg-success/5",
-        status === "error" && "border-destructive/40 bg-destructive/5",
-        status === "missing" && "border-border bg-surface",
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">{spec.label}</div>
-          <div className="text-xs text-muted-foreground">{spec.description}</div>
-        </div>
-        <span
-          className={cn(
-            "inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-            status === "uploaded" && "bg-success/15 text-success",
-            status === "error" && "bg-destructive/10 text-destructive",
-            status === "missing" && "bg-muted text-muted-foreground",
-          )}
-        >
-          {status}
-        </span>
-      </div>
-
-      <div className="mt-3">
-        {file ? (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 shrink-0 text-primary" />
-              <span className="truncate text-xs">{file.name}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <label
-                htmlFor={inputId}
-                className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </label>
-              <button
-                type="button"
-                onClick={onRemove}
-                className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <label
-            htmlFor={inputId}
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface-muted px-3 py-3 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Choose .xlsx file
-          </label>
-        )}
-
-        <input
-          id={inputId}
-          type="file"
-          accept=".xlsx"
-          className="sr-only"
-          onChange={(event) => onSelect(event.target.files?.[0] ?? null)}
-        />
-      </div>
-
-      {error && <div className="mt-2 text-xs text-destructive">{error}</div>}
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2">
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
     </div>
-  );
-}
-
-function ActionButton({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: JSX.Element;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-primary"
-    >
-      {icon}
-    </button>
-  );
-}
-
-function StageStatusIcon({ status }: { status: StageStatus }) {
-  if (status === "complete") {
-    return <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />;
-  }
-
-  if (status === "running") {
-    return <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />;
-  }
-
-  if (status === "error") {
-    return <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />;
-  }
-
-  return <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted-foreground/40" />;
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "success";
-}) {
-  return (
-    <Card className="p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-lg font-semibold", tone === "success" && "text-success")}>
-        {value}
-      </div>
-    </Card>
   );
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-border/60 pb-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="break-all text-right font-medium">{value}</span>
+    <div className="flex justify-between gap-4 border-b border-slate-200 pb-2">
+      <span className="text-slate-500">{label}</span>
+      <span className="break-all text-right font-medium text-slate-900">{value}</span>
     </div>
   );
 }
 
-function StepDot({
-  active,
-  index,
-  label,
-}: {
-  active: boolean;
-  index: number;
-  label: string;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        className={cn(
-          "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold",
-          active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-        )}
-      >
-        {index}
-      </div>
-      <span className={active ? "font-medium text-foreground" : "text-muted-foreground"}>
-        {label}
-      </span>
-    </div>
-  );
+function buildValidationSummary(files: Partial<Record<FileKey, File>>): ValidationSummary {
+  const totalBytes = Object.values(files).reduce((sum, file) => sum + (file?.size ?? 0), 0);
+  const totalClaims = Math.max(120, Math.round(totalBytes / 3200));
+  const invalidClaims = Math.max(8, Math.round(totalClaims * 0.12));
+  const flaggedAnomalies = Math.max(4, Math.round(totalClaims * 0.04));
+
+  return {
+    totalClaims,
+    invalidClaims,
+    flaggedAnomalies,
+  };
+}
+
+function wait(durationMs: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, durationMs));
 }

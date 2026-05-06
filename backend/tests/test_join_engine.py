@@ -147,6 +147,13 @@ class TestJoinWithFallbackKeys:
         assert result.status == "ok"
         assert result.matched_row["NDC"] == "12345"
 
+    def test_conflicting_secondary_key_requires_manual_review(self):
+        denial = {"Material_ID": "MAT-1", "NDC": "99999"}
+        source = pd.DataFrame([{"Material_ID": "MAT-1", "NDC": "12345"}])
+        sc = _scenario("MAT_ATTR_MISMATCH", "material_master", ["Material_ID"], secondary=["NDC"])
+        result = join_with_fallback_keys(denial, source, sc)
+        assert result.status == "conflict"
+
     def test_no_secondary_keys_returns_no_match(self):
         denial = {"Material_ID": "UNKNOWN"}
         source = pd.DataFrame([{"Material_ID": "MAT-1"}])

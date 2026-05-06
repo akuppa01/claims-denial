@@ -23,7 +23,7 @@ from .schemas import ScenarioConfig
 @dataclass
 class JoinResult:
     rows: List[dict] = field(default_factory=list)
-    status: str = "ok"      # "ok" | "no_match" | "duplicate"
+    status: str = "ok"      # "ok" | "no_match" | "duplicate" | "conflict"
 
     @property
     def matched_row(self) -> Optional[dict]:
@@ -98,6 +98,12 @@ def join_with_fallback_keys(
     from Material_ID to NDC.
     """
     result = join_denial_to_source(denial_row, source_df, scenario)
+    if result.status == "ok" and result.matched_row and scenario.secondary_join_keys:
+        for key in scenario.secondary_join_keys:
+            denial_val = _safe_str(denial_row.get(key, ""))
+            source_val = _safe_str(result.matched_row.get(key, ""))
+            if denial_val and source_val and denial_val != source_val:
+                return JoinResult(rows=result.rows, status="conflict")
     if result.status != "no_match":
         return result
 
