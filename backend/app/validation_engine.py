@@ -50,7 +50,7 @@ class ScenarioResult:
     rule_results: list[RuleResult] = field(default_factory=list)
     research_finding: str = ""
     recommended_next_action: str = ""
-    agent_status: str = "Ready for ECC Research Note"
+    agent_status: str = "Ready for Resubmission Review"
 
     def add(self, r: RuleResult) -> None:
         self.rule_results.append(r)
@@ -172,6 +172,22 @@ def _evaluate_rule(rule: ValidationRule, record: dict) -> RuleResult:
             else:
                 passed = str(left_raw or "").strip() == str(right_resolved or "").strip()
 
+        elif op == "before_date":
+            # left field date must be strictly before the reference date (right field or literal)
+            check = _to_date(left_raw)
+            ref = _to_date(right_resolved)
+            if check is None or ref is None:
+                raise ValueError("Could not parse dates for before_date")
+            passed = check < ref
+
+        elif op == "on_or_after_date":
+            # left field date must be on or after the reference date
+            check = _to_date(left_raw)
+            ref = _to_date(right_resolved)
+            if check is None or ref is None:
+                raise ValueError("Could not parse dates for on_or_after_date")
+            passed = check >= ref
+
         elif op == "between_dates_if_present":
             # right_field_or_value = "start_canonical_field,end_canonical_field"
             parts = (right_raw or "").split(",")
@@ -228,7 +244,7 @@ def evaluate_scenario_rules(
     """Run all rules for a scenario against the merged record.
 
     Result logic:
-    - All rules pass        → Ready for ECC Research Note
+    - All rules pass        → Ready for Resubmission Review
     - Any rule fails        → Needs Manual Review
     - Any evaluation error  → Needs Manual Review
     """
@@ -256,7 +272,7 @@ def evaluate_scenario_rules(
     result.recommended_next_action = _dedup(actions)
 
     # Ensure successful rows always carry a non-empty finding
-    if result.agent_status == "Ready for ECC Research Note" and not result.research_finding:
+    if result.agent_status == "Ready for Resubmission Review" and not result.research_finding:
         result.research_finding = "All validation checks passed."
 
     if not rules:

@@ -26,6 +26,7 @@ import pandas as pd
 
 from .errors import MissingRulesBrainSheetError
 from .schemas import (
+    DivestitureRule,
     FieldAlias,
     OutputDefaults,
     RulesBrain,
@@ -127,7 +128,7 @@ def _load_all_sheets(file_bytes: bytes | io.IOBase) -> dict[str, pd.DataFrame]:
         buf = io.BytesIO(file_bytes)
     else:
         buf = file_bytes
-    return pd.read_excel(buf, sheet_name=None, dtype=str)
+    return pd.read_excel(buf, sheet_name=None, dtype=str, engine="openpyxl")
 
 
 def _sheet_lookup(sheets: dict[str, pd.DataFrame]) -> dict[str, str]:
@@ -261,6 +262,12 @@ def _parse_scenarios(
     col_no_match = _find_col(df, "missing", "status")
     col_enabled = _find_col(df, "enabled")
     col_rec_action = _find_col(df, "recommended") or _find_col(df, "default", "action")
+    col_all_pass = _find_col(df, "all", "pass", "outcome") or _find_col(df, "success", "outcome")
+    col_standard_finding = _find_col(df, "standard", "research", "finding")
+    col_standard_details = _find_col(df, "standard", "discrepancy", "details")
+    col_resubmit_action = _find_col(df, "resubmission", "next", "action")
+    col_acceptable_action = _find_col(df, "acceptable", "next", "action")
+    col_secondary_display = _find_col(df, "secondary", "source")
 
     if not col_code or not col_source:
         raise MissingRulesBrainSheetError(
@@ -295,6 +302,13 @@ def _parse_scenarios(
         if col_rec_action:
             default_action = _str(row.get(col_rec_action, ""))
 
+        all_pass_outcome = _str(row.get(col_all_pass, "")) if col_all_pass else ""
+        standard_finding = _str(row.get(col_standard_finding, "")) if col_standard_finding else ""
+        standard_details = _str(row.get(col_standard_details, "")) if col_standard_details else ""
+        resubmit_action = _str(row.get(col_resubmit_action, "")) if col_resubmit_action else ""
+        acceptable_action = _str(row.get(col_acceptable_action, "")) if col_acceptable_action else ""
+        secondary_display = _str(row.get(col_secondary_display, "")) if col_secondary_display else ""
+
         jl = join_logic.get(code, {})
         join_keys = jl.get("join_keys", [])
         secondary_keys = jl.get("secondary_join_keys", [])
@@ -309,6 +323,12 @@ def _parse_scenarios(
             default_agent_status_no_match=no_match_status,
             default_recommended_next_action=default_action,
             primary_source_display=display_name,
+            all_pass_outcome=all_pass_outcome,
+            standard_research_finding=standard_finding,
+            standard_discrepancy_details=standard_details,
+            resubmission_next_action=resubmit_action,
+            acceptable_next_action=acceptable_action,
+            secondary_source_display=secondary_display,
         )
     return scenarios
 
@@ -460,6 +480,42 @@ def _parse_output_defaults(df: Optional[pd.DataFrame]) -> OutputDefaults:
     )
 
 
+def _parse_divestiture_rules(df: Optional[pd.DataFrame]) -> list[DivestitureRule]:
+    """Parse Divestiture_Business_Rules sheet.
+
+    Expected columns: Rule_ID | Rule_Name | Trigger | Key_Logic | Fields_Checked | Agent_Action
+    """
+    if df is None:
+        return []
+
+    col_id = _find_col(df, "rule_id") or _find_col(df, "rule", "id")
+    col_name = _find_col(df, "rule_name") or _find_col(df, "name")
+    col_trigger = _find_col(df, "trigger")
+    col_logic = _find_col(df, "logic") or _find_col(df, "key")
+    col_fields = _find_col(df, "fields")
+    col_action = _find_col(df, "action") or _find_col(df, "agent")
+
+    if not col_id:
+        return []
+
+    rules: list[DivestitureRule] = []
+    for _, row in df.iterrows():
+        rule_id = _str(row.get(col_id, "")) if col_id else ""
+        if not rule_id or rule_id.lower() in ("rule_id", "nan"):
+            continue
+        rules.append(
+            DivestitureRule(
+                rule_id=rule_id,
+                rule_name=_str(row.get(col_name, "")) if col_name else "",
+                trigger=_str(row.get(col_trigger, "")) if col_trigger else "",
+                key_logic=_str(row.get(col_logic, "")) if col_logic else "",
+                fields_checked=_split_semi(row.get(col_fields, "")) if col_fields else [],
+                agent_action=_str(row.get(col_action, "")) if col_action else "",
+            )
+        )
+    return rules
+
+
 def _parse_output_template(df: Optional[pd.DataFrame]) -> list[str]:
     if df is None:
         return DEFAULT_OUTPUT_COLUMNS[:]
@@ -514,6 +570,9 @@ def load_rules_brain(file_bytes: bytes | io.IOBase) -> RulesBrain:
     ot_df = _get_sheet(sheets, lookup, "Output_Template")
     output_columns = _parse_output_template(ot_df) if ot_df is not None else DEFAULT_OUTPUT_COLUMNS[:]
 
+    db_df = _get_sheet(sheets, lookup, "Divestiture_Business_Rules")
+    divestiture_rules = _parse_divestiture_rules(db_df)
+
     return RulesBrain(
         field_aliases=field_aliases,
         scenarios=scenarios,
@@ -521,5 +580,6 @@ def load_rules_brain(file_bytes: bytes | io.IOBase) -> RulesBrain:
         reason_code_map=reason_code_map,
         output_defaults=output_defaults,
         output_columns=output_columns,
+        divestiture_rules=divestiture_rules,
         raw_sheets={k: sheets[k] for k in sheets},
     )

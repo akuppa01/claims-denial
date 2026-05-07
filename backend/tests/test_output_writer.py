@@ -37,7 +37,7 @@ def _sample_rows() -> list[dict]:
             "Primary_Source_Checked": "Material Master",
             "Research_Finding": "Type match confirmed.",
             "Recommended_Next_Action": "No action.",
-            "Agent_Status": "Ready for ECC Research Note",
+            "Agent_Status": "Ready for Resubmission Review",
         },
         {
             "Claim_ID": "CLM002",
@@ -149,7 +149,7 @@ class TestExcelOutput:
 
         for row_idx in range(2, ws.max_row + 1):
             status_cell = ws.cell(row=row_idx, column=agent_col_idx)
-            if status_cell.value == "Ready for ECC Research Note":
+            if status_cell.value == "Ready for Resubmission Review":
                 rgb = status_cell.fill.fgColor.rgb
                 assert rgb == "FFD6EAD7", f"Expected soft green, got {rgb}"
 
@@ -186,7 +186,7 @@ class TestExcelOutput:
 
         for row_idx in range(2, ws.max_row + 1):
             status_cell = ws.cell(row=row_idx, column=agent_col_idx)
-            if status_cell.value == "Ready for ECC Research Note":
+            if status_cell.value == "Ready for Resubmission Review":
                 finding_val = ws.cell(row=row_idx, column=finding_col_idx).value or ""
                 assert finding_val.startswith("✓"), f"Expected ✓ prefix, got: {finding_val}"
 

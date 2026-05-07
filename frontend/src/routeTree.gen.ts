@@ -9,38 +9,221 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ValidateRouteImport } from './routes/validate'
+import { Route as UploadRouteImport } from './routes/upload'
+import { Route as OutputRouteImport } from './routes/output'
+import { Route as HelpRouteImport } from './routes/help'
+import { Route as FeedbackRouteImport } from './routes/feedback'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AiAnalystRouteImport } from './routes/ai-analyst'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsUsageRouteImport } from './routes/settings/usage'
+import { Route as SettingsModelsRouteImport } from './routes/settings/models'
+import { Route as SettingsApiKeysRouteImport } from './routes/settings/api-keys'
 
+const ValidateRoute = ValidateRouteImport.update({
+  id: '/validate',
+  path: '/validate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UploadRoute = UploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OutputRoute = OutputRouteImport.update({
+  id: '/output',
+  path: '/output',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedbackRoute = FeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiAnalystRoute = AiAnalystRouteImport.update({
+  id: '/ai-analyst',
+  path: '/ai-analyst',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsUsageRoute = SettingsUsageRouteImport.update({
+  id: '/settings/usage',
+  path: '/settings/usage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsModelsRoute = SettingsModelsRouteImport.update({
+  id: '/settings/models',
+  path: '/settings/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsApiKeysRoute = SettingsApiKeysRouteImport.update({
+  id: '/settings/api-keys',
+  path: '/settings/api-keys',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-analyst': typeof AiAnalystRoute
+  '/dashboard': typeof DashboardRoute
+  '/feedback': typeof FeedbackRoute
+  '/help': typeof HelpRoute
+  '/output': typeof OutputRoute
+  '/upload': typeof UploadRoute
+  '/validate': typeof ValidateRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/models': typeof SettingsModelsRoute
+  '/settings/usage': typeof SettingsUsageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-analyst': typeof AiAnalystRoute
+  '/dashboard': typeof DashboardRoute
+  '/feedback': typeof FeedbackRoute
+  '/help': typeof HelpRoute
+  '/output': typeof OutputRoute
+  '/upload': typeof UploadRoute
+  '/validate': typeof ValidateRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/models': typeof SettingsModelsRoute
+  '/settings/usage': typeof SettingsUsageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-analyst': typeof AiAnalystRoute
+  '/dashboard': typeof DashboardRoute
+  '/feedback': typeof FeedbackRoute
+  '/help': typeof HelpRoute
+  '/output': typeof OutputRoute
+  '/upload': typeof UploadRoute
+  '/validate': typeof ValidateRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/models': typeof SettingsModelsRoute
+  '/settings/usage': typeof SettingsUsageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/ai-analyst'
+    | '/dashboard'
+    | '/feedback'
+    | '/help'
+    | '/output'
+    | '/upload'
+    | '/validate'
+    | '/settings/api-keys'
+    | '/settings/models'
+    | '/settings/usage'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/ai-analyst'
+    | '/dashboard'
+    | '/feedback'
+    | '/help'
+    | '/output'
+    | '/upload'
+    | '/validate'
+    | '/settings/api-keys'
+    | '/settings/models'
+    | '/settings/usage'
+  id:
+    | '__root__'
+    | '/'
+    | '/ai-analyst'
+    | '/dashboard'
+    | '/feedback'
+    | '/help'
+    | '/output'
+    | '/upload'
+    | '/validate'
+    | '/settings/api-keys'
+    | '/settings/models'
+    | '/settings/usage'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiAnalystRoute: typeof AiAnalystRoute
+  DashboardRoute: typeof DashboardRoute
+  FeedbackRoute: typeof FeedbackRoute
+  HelpRoute: typeof HelpRoute
+  OutputRoute: typeof OutputRoute
+  UploadRoute: typeof UploadRoute
+  ValidateRoute: typeof ValidateRoute
+  SettingsApiKeysRoute: typeof SettingsApiKeysRoute
+  SettingsModelsRoute: typeof SettingsModelsRoute
+  SettingsUsageRoute: typeof SettingsUsageRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/validate': {
+      id: '/validate'
+      path: '/validate'
+      fullPath: '/validate'
+      preLoaderRoute: typeof ValidateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/upload': {
+      id: '/upload'
+      path: '/upload'
+      fullPath: '/upload'
+      preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/output': {
+      id: '/output'
+      path: '/output'
+      fullPath: '/output'
+      preLoaderRoute: typeof OutputRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feedback': {
+      id: '/feedback'
+      path: '/feedback'
+      fullPath: '/feedback'
+      preLoaderRoute: typeof FeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-analyst': {
+      id: '/ai-analyst'
+      path: '/ai-analyst'
+      fullPath: '/ai-analyst'
+      preLoaderRoute: typeof AiAnalystRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +231,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/usage': {
+      id: '/settings/usage'
+      path: '/settings/usage'
+      fullPath: '/settings/usage'
+      preLoaderRoute: typeof SettingsUsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/models': {
+      id: '/settings/models'
+      path: '/settings/models'
+      fullPath: '/settings/models'
+      preLoaderRoute: typeof SettingsModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/api-keys': {
+      id: '/settings/api-keys'
+      path: '/settings/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof SettingsApiKeysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiAnalystRoute: AiAnalystRoute,
+  DashboardRoute: DashboardRoute,
+  FeedbackRoute: FeedbackRoute,
+  HelpRoute: HelpRoute,
+  OutputRoute: OutputRoute,
+  UploadRoute: UploadRoute,
+  ValidateRoute: ValidateRoute,
+  SettingsApiKeysRoute: SettingsApiKeysRoute,
+  SettingsModelsRoute: SettingsModelsRoute,
+  SettingsUsageRoute: SettingsUsageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

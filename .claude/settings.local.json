@@ -12,7 +12,26 @@
       "Bash(git add *)",
       "Bash(uvicorn app.main:app --reload --port 8000)",
       "Bash(curl -s http://127.0.0.1:8000/health)",
-      "Bash(curl -s -X POST http://127.0.0.1:8000/process-claims -F denial_records=@DenialRecords_Populated.xlsx -F contracts_data=@ContractsData_Populated.xlsx -F customer_master=@CustomerMasterRecords_Populated.xlsx -F material_master=@MaterialMasterRecords_Populated.xlsx -F pricing_data=@PricingData_Populated.xlsx -F rules_brain=@/Users/adi/Downloads/Claims_AI_Rules_Brain_Renewed.xlsx --output OutputFile_Generated.xlsx -w '\\\\nHTTP %{http_code} | %{size_download} bytes | %{time_total}s\\\\n')"
+      "Bash(curl -s -X POST http://127.0.0.1:8000/process-claims -F denial_records=@DenialRecords_Populated.xlsx -F contracts_data=@ContractsData_Populated.xlsx -F customer_master=@CustomerMasterRecords_Populated.xlsx -F material_master=@MaterialMasterRecords_Populated.xlsx -F pricing_data=@PricingData_Populated.xlsx -F rules_brain=@/Users/adi/Downloads/Claims_AI_Rules_Brain_Renewed.xlsx --output OutputFile_Generated.xlsx -w '\\\\nHTTP %{http_code} | %{size_download} bytes | %{time_total}s\\\\n')",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)",
+      "Bash(python3 backend/tests/fixtures/build_updated_rules_brain.py)",
+      "Bash(python -m pytest tests/ -x -q)",
+      "Bash(python -m pytest tests/test_divestiture_scenarios.py -x -q -W always)",
+      "Bash(python -m pytest tests/ -q --ignore=tests/test_api_integration.py -W default)",
+      "Bash(python -m pytest tests/test_validation_engine.py::TestEqualsOperator::test_pass -x -q)",
+      "Bash(git push *)",
+      "Bash(python3 -m pip install -q -r backend/requirements.txt)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(python3 -m uvicorn app.main:app --reload --port 8000)",
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(npx vite *)",
+      "Bash(echo \"Exit: $?\")",
+      "Read(//Users/adi/.nvm/versions/node/**)",
+      "Bash(command -v nvm)",
+      "Bash(brew list *)"
     ]
   }
 }

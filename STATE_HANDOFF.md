@@ -3,331 +3,197 @@
 ## Repo Snapshot
 
 - Repo: `claims-denial`
-- Branch: `main`
-- Date: `2026-04-27`
-- App shape: monorepo with FastAPI backend and Lovable-generated React + Vite frontend
-- Current status: local run still works, Vercel deployment support was added, the standalone frontend and standalone backend deployments are working, and the original Services-mode project still has a root-route issue
+- Active branch: `feat/agentic-ui` (latest UI work — branched from `divestiture-additions`)
+- Date: `2026-05-06`
+- App shape: monorepo — FastAPI backend + TanStack Start (React SSR) frontend
 
-## Top-Level Structure
+---
+
+## Branch Hierarchy
+
+```
+main
+└── divestiture-additions   ← divestiture backend logic (131 tests passing)
+    └── feat/agentic-ui     ← full frontend redesign (THIS BRANCH, latest)
+```
+
+---
+
+## What Was Done on `feat/agentic-ui`
+
+### Complete Frontend Redesign
+
+Rebuilt the entire frontend UI into an enterprise AI operations dashboard. The original single-page app (`routes/index.tsx`) has been replaced with a full multi-page app with sidebar navigation. The existing backend (`POST /process-claims`) and upload/validation flow are fully preserved.
+
+### New File Structure
 
 ```text
-Claims Denial/
-├── package.json
-├── package-lock.json
-├── README.md
-├── .gitignore
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── processor.py
-│   │   ├── rules_loader.py
-│   │   ├── output_writer.py
-│   │   └── ...
-│   ├── requirements.txt
-│   └── tests/
-├── frontend/
-│   ├── .env
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── src/
-│       ├── routes/index.tsx
-│       └── ...
-└── STATE_HANDOFF.md
+frontend/src/
+├── context/
+│   └── AppContext.tsx          ← NEW: global state (files, validation, output, model selection)
+├── components/
+│   ├── layout/
+│   │   ├── Sidebar.tsx         ← NEW: collapsible dark navy sidebar
+│   │   └── TopBar.tsx          ← NEW: top header with status pills
+│   └── app/
+│       ├── StatCard.tsx        ← NEW: metric card component
+│       ├── WorkflowStep.tsx    ← NEW: step status indicator
+│       ├── LogsPanel.tsx       ← NEW: dark terminal-style logs panel
+│       ├── OutputTable.tsx     ← NEW: output table with filters
+│       ├── AIAssistantPanel.tsx ← NEW: AI chat mock (Coming Soon)
+│       └── PlaceholderPage.tsx  ← NEW: reusable placeholder page
+├── routes/
+│   ├── __root.tsx              ← UPDATED: sidebar layout + AppProvider wrapper
+│   ├── index.tsx               ← UPDATED: redirects to /dashboard
+│   ├── dashboard.tsx           ← NEW: stats dashboard + getting started guide
+│   ├── upload.tsx              ← NEW: upload page with 6 file cards + progress bar
+│   ├── validate.tsx            ← NEW: review + run validation + workflow + logs
+│   ├── output.tsx              ← NEW: output viewer + AI assistant panel
+│   ├── ai-analyst.tsx          ← NEW: AI analyst mock page
+│   ├── help.tsx                ← NEW: placeholder
+│   ├── feedback.tsx            ← NEW: placeholder
+│   └── settings/
+│       ├── models.tsx          ← NEW: LLM model selection (GPT-4o, Claude, Gemini)
+│       ├── api-keys.tsx        ← NEW: API keys (backend-only explainer)
+│       └── usage.tsx           ← NEW: usage/tokens stats
+└── routeTree.gen.ts            ← AUTO-UPDATED by Vite plugin on dev server start
 ```
 
-## Backend Facts
+### Key Design Decisions
 
-- Backend entrypoint: `backend/app/main.py`
-- Direct run command:
+- **Sidebar**: Dark navy (`bg-slate-900`), collapsible, shows file upload status pill
+- **Layout**: Fixed sidebar + scrollable content area, white top bar
+- **Colors**: Blue-600 primary, green for success, amber for warnings, slate for muted
+- **State**: Single `AppContext` holds all upload/validation/output state across pages
+- **Output viewer**: Shows mock/placeholder rows + download button (no xlsx parsing needed)
+- **AI panel**: Clickable prompt chips, "Coming Soon" badge, friendly disabled responses
+- **LLM models**: Stored in `selectedModel` local state, not sent to backend yet
 
+---
+
+## Running the App
+
+### Node version requirement
+Frontend requires Node v20+ (v22 recommended). Use:
 ```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
+export PATH="/Users/adi/.nvm/versions/node/v22.18.0/bin:$PATH"
 ```
 
-- Root run command:
-
+### Start backend
 ```bash
+cd "/Users/adi/Desktop/Coding/Misc/Claims Denial/backend"
+python3 -m uvicorn app.main:app --reload --port 8000
+```
+Health check: `curl http://localhost:8000/health` → `{"status":"ok",...}`
+
+### Start frontend
+```bash
+export PATH="/Users/adi/.nvm/versions/node/v22.18.0/bin:$PATH"
+cd "/Users/adi/Desktop/Coding/Misc/Claims Denial/frontend"
+npm install   # if node_modules missing or stale
 npm run dev
 ```
+Opens at: `http://localhost:8080` → auto-redirects to `/dashboard`
 
-- Core endpoint: `POST /process-claims`
-- Health endpoint: `GET /health`
-- `POST /process-claims` already existed and remains the single processing entrypoint
-- Endpoint accepts `multipart/form-data` with these exact field names:
-  - `denial_records`
-  - `contracts_data`
-  - `customer_master`
-  - `material_master`
-  - `pricing_data`
-  - `rules_brain`
-- Response is binary Excel, not JSON:
-  - content type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
-  - attachment filename: `OutputFile_Generated.xlsx`
+---
 
-## Frontend Facts
+## Frontend Routes
 
-- Main screen logic is in `frontend/src/routes/index.tsx`
-- Direct run commands:
+| Route | Page | Status |
+|-------|------|--------|
+| `/` | → redirects to `/dashboard` | ✅ |
+| `/dashboard` | Stats dashboard + getting started | ✅ |
+| `/upload` | Upload 6 Excel files | ✅ functional |
+| `/validate` | Review files + run validation pipeline | ✅ functional |
+| `/output` | Output table viewer + AI panel | ✅ (mock table data) |
+| `/ai-analyst` | AI Analyst (Coming Soon) | ✅ mock |
+| `/settings/models` | LLM model selection | ✅ mock |
+| `/settings/api-keys` | API key explainer | ✅ mock |
+| `/settings/usage` | Usage/token stats | ✅ mock |
+| `/help` | Help placeholder | ✅ placeholder |
+| `/feedback` | Feedback placeholder | ✅ placeholder |
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+---
 
-- Frontend local URL is determined by Vite at startup
-- During final verification in this repo, Vite served at `http://localhost:8080`
+## What Still Needs Backend Work
 
-- Frontend now uses:
+1. **Output table rows are mock/placeholder data** — the backend returns a binary Excel blob. To show real rows in the output table, either:
+   - Add a JSON endpoint `POST /process-claims/json` that returns structured rows alongside the Excel
+   - Or parse the Excel in the browser with the `xlsx` npm package (not yet installed)
 
-```ts
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-```
+2. **AI Analyst is not connected** — no LLM integration yet. The `selectedModel` in AppContext is stored locally only. To wire it up:
+   - Add `POST /ai/chat` backend endpoint that proxies to the selected LLM using env-var API keys
+   - Connect the `AIAssistantPanel` input to that endpoint
 
-- Local env file is present at `frontend/.env` with:
+3. **API keys are display-only** — the `/settings/api-keys` page explains backend-only key storage. The backend `.env` integration for LLM keys is not yet implemented.
 
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
+4. **Token/usage tracking is mock** — real tracking requires the AI Analyst to be wired up first.
 
-- Upload flow constructs `FormData` with the exact six backend field names
-- Frontend sends:
+---
 
-```ts
-fetch(`${API_BASE_URL}/process-claims`, {
-  method: "POST",
-  body: formData,
-});
-```
+## Backend Facts (unchanged from divestiture-additions)
 
-- Frontend does not manually set `Content-Type`
-- Successful responses are handled as blob downloads for `OutputFile_Generated.xlsx`
-- Error responses are read and surfaced to the UI before any download attempt
+- Endpoint: `POST /process-claims` (multipart form, 6 fields)
+- Response: binary Excel blob (`.xlsx`)
+- 23 output columns (when using updated rules brain)
+- 131 backend tests passing
 
-## Vercel Facts
+### Form field names
+- `denial_records`
+- `contracts_data`
+- `customer_master`
+- `material_master`
+- `pricing_data`
+- `rules_brain`
 
-- Vercel account used during deployment: `akuppa01`
-- Vercel scope/team used: `aditya-ks-projects-89027c29`
-- Relevant Vercel projects discovered during this work:
-  - `claims-denial`
-  - `frontend`
-  - `claims-denial-api`
-- Working deployed frontend:
-  - [https://frontend-chi-green-15.vercel.app](https://frontend-chi-green-15.vercel.app)
-- Working deployed backend:
-  - [https://claims-denial-api.vercel.app](https://claims-denial-api.vercel.app)
-- Verified backend health endpoint:
-  - [https://claims-denial-api.vercel.app/health](https://claims-denial-api.vercel.app/health)
-- Verified frontend proxy health endpoint:
-  - [https://frontend-chi-green-15.vercel.app/api/health](https://frontend-chi-green-15.vercel.app/api/health)
-- Important caveat:
-  - the existing `claims-denial` Vercel project is configured with `Framework Preset: Services`
-  - that project now builds successfully, including frontend Nitro output and backend Python output
-  - however [https://claims-denial.vercel.app](https://claims-denial.vercel.app) still returns `404` at `/`
-  - meanwhile [https://claims-denial.vercel.app/api/health](https://claims-denial.vercel.app/api/health) works
-  - treat `frontend-chi-green-15.vercel.app` as the currently working hosted UI unless/until the Services routing issue is resolved
+---
 
-## Integration Fixes Applied
+## Test Data Files
 
-### Backend
+- Denial/master/pricing data: `/Users/adi/Downloads/DenialRecords (2)/`
+- Updated rules brain: `backend/tests/fixtures/Claims_AI_Rules_Brain_Updated.xlsx`
+- Desktop copy: `/Users/adi/Desktop/Claims_AI_Rules_Brain_Updated.xlsx`
 
-- Added CORS middleware in `backend/app/main.py`
-- Default allowed origins include:
-  - `http://localhost:3000`
-  - `http://localhost:4173`
-  - `http://localhost:5173`
-  - `http://localhost:8080`
-  - `http://127.0.0.1:3000`
-  - `http://127.0.0.1:4173`
-  - `http://127.0.0.1:5173`
-  - `http://127.0.0.1:8080`
-- Future deployed frontend domains can be supplied via:
+Upload all 6 files via the Upload Claims page, then run validation from the Validation Runs page.
 
-```bash
-FRONTEND_CORS_ORIGINS=https://your-frontend.example.com
-```
+---
 
-- Added Vercel Python entrypoints:
-  - `backend/server.py`
-  - `backend/api/index.py`
-- Added backend Vercel routing/config file:
-  - `backend/vercel.json`
-- Backend standalone Vercel deployment now works with explicit rewrites and a Python function include-files rule
+## Known Issues / TODOs
 
-### Frontend
+- [ ] Output Viewer shows placeholder mock rows, not real validated data
+- [ ] AI Analyst chat is disabled (Coming Soon)
+- [ ] Sidebar `/help` and `/feedback` are placeholder pages
+- [ ] Token tracking on Usage page is all mock (`—`)
+- [ ] The `routeTree.gen.ts` is auto-generated — do not manually edit it; Vite plugin updates it on dev server start
 
-- Replaced relative `"/process-claims"` fetch with env-driven backend URL
-- Added explicit helper logic for:
-  - cleaner FastAPI error extraction
-  - consistent Excel blob download behavior
-- Updated production fallback API base to `"/api"` so same-origin proxying works in hosted environments
-- Rebuilt `frontend/src/routes/index.tsx` into a simpler deployment-safe upload/review/run flow after Vercel route parsing issues surfaced
-- Restored placeholder/iCloud-dataless frontend files that were breaking builds:
-  - `frontend/package.json`
-  - `frontend/vite.config.ts`
-- Replaced the frontend Vite config with an explicit Vercel-compatible TanStack Start + Nitro setup
-- Added frontend Vercel routing/config file:
-  - `frontend/vercel.json`
-  - rewrites `/api/:path*` to `https://claims-denial-api.vercel.app/:path*`
+---
 
-### Root Repo
+## Divestiture Backend Work (from divestiture-additions)
 
-- Added root `package.json` with:
-  - `npm run dev` to start backend and frontend together
-  - `npm run setup` to install backend and frontend dependencies
-- Added root `README.md` with one-command run instructions
-- Added root `.gitignore` so local runtime artifacts do not get committed
-- Added root `vercel.json` for the original Services-mode Vercel deployment path
+See the original handoff notes below for full details on the divestiture logic, test results, and identified discrepancies with OutputFile.xlsx.
 
-## Verification Completed
+### Unresolved discrepancies
 
-- Backend test suite:
+1. `Denial_Decision` logic for divestiture rows (Acceptable Denial vs Resubmission Candidate)
+2. `Transition_Period_Flag` mismatch for ~4 rows (CLM900013/14/16/18)
+3. `Agent_Status: "Closed - Research Complete"` for valid-denial non-divestiture rows — needs `Confirms_Denial_Valid` flag in Scenarios sheet
 
-```bash
-cd backend
-pytest -q
-```
-
-- Result: `96 passed`
-
-- Added dedicated API integration test:
-  - file: `backend/tests/test_api_integration.py`
-  - verifies multipart upload contract
-  - verifies Excel binary response
-  - verifies CORS preflight for Vite origin
-
-- Frontend production build:
-
-```bash
-cd frontend
-npm run build
-```
-
-- Result: the original local-build notes are now less important than the hosted build path; Vercel builds were repaired successfully after restoring placeholder files and replacing the Vite config
-
-- Frontend lint:
-
-```bash
-cd frontend
-npm run lint
-```
-
-- Result: no errors in the integration changes
-- Remaining lint output is warnings only from pre-existing UI component files about `react-refresh/only-export-components`
-
-- Root run command:
-
-```bash
-cd /path/to/repo
-npm install
-npm run setup
-npm run dev
-```
-
-- Live end-to-end processing verification:
-  - backend started on `http://127.0.0.1:8000`
-  - frontend started from the root command and served locally on `http://localhost:8080`
-  - CORS preflight to `POST /process-claims` succeeded for `http://localhost:8080`
-  - real uploaded input set was processed successfully through `POST /process-claims`
-  - backend returned `OutputFile_Generated.xlsx` with the correct Excel content type and attachment header
-  - generated workbook matched expected output structure:
-    - same 11 columns
-    - same column order
-    - 100 data rows
-    - populated `Processed_Timestamp`
-    - valid-looking `Agent_Status` values
-    - fill styling present on `Agent_Status`
-
-- Note on browser automation:
-  - the in-app browser was able to open and inspect the frontend
-  - this browser surface did not expose file-input upload automation, so the exact upload click path could not be driven there
-  - the equivalent live backend multipart request with the same six files was executed successfully
-
-- Hosted verification completed on `2026-04-27`:
-  - `https://claims-denial-api.vercel.app/health` returned JSON health data
-  - `https://frontend-chi-green-15.vercel.app/` returned `HTTP/2 200`
-  - `https://frontend-chi-green-15.vercel.app/api/health` successfully proxied to the backend and returned JSON health data
-  - `https://claims-denial.vercel.app/api/health` also worked
-  - `https://claims-denial.vercel.app/` still returned `HTTP/2 404`
+---
 
 ## Important Constraints
 
-- Do not rewrite the processing pipeline unless explicitly requested
-- Do not change business logic in:
-  - `processor.py`
-  - `rules_loader.py`
-  - validation/join logic modules
-- The integration contract is now stable and should be treated as the baseline:
-  - 6 file upload fields
-  - `POST /process-claims`
-  - binary Excel response download
-
-## Things A Fresh Agent Should Check First
-
-1. Confirm backend is running on port `8000`
-2. Confirm frontend `VITE_API_BASE_URL` points to that backend
-3. Confirm the actual Vite local port is included in CORS if it is not one of the defaults
-4. If upload/download breaks, inspect `frontend/src/routes/index.tsx` and `backend/app/main.py` first
-5. If business results look wrong, start with `rules_brain` parsing and backend tests, not the frontend
-
-## Known Non-Blocking Notes
-
-- `frontend/` is present and should be treated as part of the repo now
-- Frontend build works after installing dependencies locally
-- There are local/generated artifacts that should not drive product decisions:
-  - `.DS_Store`
-  - `__pycache__/`
-  - local `.claude` settings
-- Several frontend files in this workspace were iCloud `dataless` placeholders during deployment work; if a future build behaves as if a file is empty, check file flags first
-- There are now multiple Vercel projects related to this app:
-  - `frontend` is the currently working hosted UI
-  - `claims-denial-api` is the currently working hosted API
-  - `claims-denial` is the original Services project and still needs root-route debugging if the goal is one canonical domain
+- Do not expose API keys in frontend code
+- Do not rewrite backend processing pipeline without explicit instruction
+- The 6 file fields must keep their exact names (`denial_records`, `contracts_data`, etc.)
+- TanStack Router route tree is auto-generated — add routes by creating files in `src/routes/`, not by editing `routeTree.gen.ts`
+- Always use Node v22 to run frontend dev server
 
 ## Most Relevant Files
 
-- `backend/app/main.py`
-- `backend/api/index.py`
-- `backend/server.py`
-- `backend/vercel.json`
-- `backend/tests/test_api_integration.py`
-- `package.json`
-- `README.md`
-- `frontend/.env`
-- `frontend/vercel.json`
-- `frontend/vite.config.ts`
-- `frontend/src/routes/index.tsx`
-- `vercel.json`
-
-## Recommended Next Steps
-
-1. If the goal is simply a working hosted app, keep using `frontend-chi-green-15.vercel.app` plus `claims-denial-api.vercel.app`
-2. If the goal is a single canonical domain at `claims-denial.vercel.app`, investigate the Services project routing/output mapping in Vercel rather than the app build itself
-3. If you want a simpler long-term setup, consider keeping two explicit Vercel projects:
-   - one frontend TanStack Start project
-   - one backend Python project
-   with the frontend proxying `/api/*` to the backend
-
-## Quick Start
-
-```bash
-npm install
-npm run setup
-npm run dev
-```
-
-Or run the services separately:
-
-```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
-```
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Then upload all 6 Excel files in the frontend and run validation. The expected outcome is a download of `OutputFile_Generated.xlsx`.
+- `frontend/src/context/AppContext.tsx` — all shared state + `runValidation()` logic
+- `frontend/src/routes/validate.tsx` — run validation UI
+- `frontend/src/routes/upload.tsx` — file upload UI
+- `frontend/src/components/layout/Sidebar.tsx` — navigation
+- `backend/app/main.py` — FastAPI entrypoint
+- `backend/app/processor.py` — divestiture logic hub
+- `backend/tests/fixtures/Claims_AI_Rules_Brain_Updated.xlsx` — use as rules_brain input
