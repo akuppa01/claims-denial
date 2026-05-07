@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Bot, Send, Sparkles, Loader2, AlertCircle, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
+import type { OutputRow } from "@/context/AppContext";
 import { Link } from "@tanstack/react-router";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -14,24 +15,25 @@ const PROMPT_CHIPS = [
   "Draft an email summary for my manager",
 ];
 
+const MODEL_TO_API: Record<string, { url: string; model: string; keyStorage: string }> = {
+  "gpt-4o": { url: OPENAI_API_URL, model: "gpt-4o", keyStorage: "openai_api_key" },
+  "gpt-4o-mini": { url: OPENAI_API_URL, model: "gpt-4o-mini", keyStorage: "openai_api_key" },
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
-function getApiKey(): string {
+function getApiKey(storageKey: string): string {
   try {
-    return (
-      localStorage.getItem("openai_api_key") ||
-      (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) ||
-      ""
-    );
+    return localStorage.getItem(storageKey) || "";
   } catch {
-    return (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) || "";
+    return "";
   }
 }
 
-function buildSystemPrompt(outputRows: ReturnType<typeof useApp>["outputRows"]): string {
+function buildSystemPrompt(outputRows: OutputRow[], runLabel?: string): string {
   const total = outputRows.length;
   const valid = outputRows.filter((r) => r.validationStatus === "Valid").length;
   const invalid = outputRows.filter((r) => r.validationStatus === "Invalid").length;
@@ -49,17 +51,17 @@ function buildSystemPrompt(outputRows: ReturnType<typeof useApp>["outputRows"]):
     .map(([reason, count]) => `  - ${reason}: ${count}`)
     .join("\n");
 
-  const sampleRows = outputRows.slice(0, 10);
+  const sampleRows = outputRows.slice(0, 15);
   const sampleStr = sampleRows
     .map(
       (r) =>
-        `  [${r.claimId}] ${r.customer} | ${r.material} | ${r.validationStatus} | ${r.denialReason} | ${r.confidence} confidence | ${r.recommendation}`,
+        `  [${r.claimId}] ${r.customer || "Unknown"} | ${r.material || "—"} | ${r.validationStatus} | ${r.denialReason} | ${r.confidence} confidence | ${r.recommendation}`,
     )
     .join("\n");
 
-  return `You are an AI analyst for a McKesson pharmaceutical claims denial management system. Your job is to help users understand validation results, identify patterns, and suggest next steps.
-
-Current validation run summary:
+  const dataContext =
+    total > 0
+      ? `Current validation run${runLabel ? ` (${runLabel})` : ""} summary:
 - Total claims processed: ${total}
 - Valid: ${valid} (${total ? ((valid / total) * 100).toFixed(1) : 0}%)
 - Invalid: ${invalid} (${total ? ((invalid / total) * 100).toFixed(1) : 0}%)
@@ -68,8 +70,13 @@ Current validation run summary:
 Top denial reasons:
 ${topDenialStr || "  No denials recorded"}
 
-Sample claim records (first 10):
-${sampleStr || "  No records available — sample preview data is loaded"}
+Sample claim records (first 15):
+${sampleStr || "  No records available"}`
+      : "No validation has been run yet. Working from sample preview data only.";
+
+  return `You are an AI analyst for a McKesson pharmaceutical claims denial management system. Your job is to help users understand validation results, identify patterns, and suggest next steps.
+
+${dataContext}
 
 Guidelines:
 - Be concise and professional; use plain language suitable for a revenue cycle manager
@@ -79,30 +86,46 @@ Guidelines:
 - If no actual validation has been run yet, note you are working from sample preview data`;
 }
 
-export function AIAssistantPanel() {
-  const { outputRows } = useApp();
+type Props = {
+  outputRows?: OutputRow[];
+  runLabel?: string;
+};
+
+export function AIAssistantPanel({ outputRows: propRows, runLabel }: Props) {
+  const { outputRows: ctxRows, selectedModel } = useApp();
+  const outputRows = propRows ?? ctxRows;
+
+  const apiConfig = MODEL_TO_API[selectedModel] ?? MODEL_TO_API["gpt-4o-mini"];
+  const apiKey = getApiKey(apiConfig.keyStorage);
+  const hasKey = !!apiKey;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasKey, setHasKey] = useState(() => !!getApiKey());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Reset chat when output data changes (different run selected)
+  const rowCountRef = useRef(outputRows.length);
   useEffect(() => {
-    setHasKey(!!getApiKey());
-  }, []);
+    if (outputRows.length !== rowCountRef.current) {
+      rowCountRef.current = outputRows.length;
+      setMessages([]);
+      setError(null);
+    }
+  }, [outputRows.length]);
 
   async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
 
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      setError("No OpenAI API key configured. Add it in Settings → API Keys.");
+    const key = getApiKey(apiConfig.keyStorage);
+    if (!key) {
+      setError("No API key configured. Add it in Settings → API Keys.");
       return;
     }
 
@@ -113,9 +136,9 @@ export function AIAssistantPanel() {
     setIsLoading(true);
 
     try {
-      const systemPrompt = buildSystemPrompt(outputRows);
+      const systemPrompt = buildSystemPrompt(outputRows, runLabel);
       const payload = {
-        model: "gpt-4o-mini",
+        model: apiConfig.model,
         messages: [
           { role: "system", content: systemPrompt },
           ...nextMessages.map((m) => ({ role: m.role, content: m.content })),
@@ -124,18 +147,18 @@ export function AIAssistantPanel() {
         temperature: 0.4,
       };
 
-      const res = await fetch(OPENAI_API_URL, {
+      const res = await fetch(apiConfig.url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error?.message ?? `OpenAI error ${res.status}`);
+        throw new Error(errData?.error?.message ?? `API error ${res.status}`);
       }
 
       const data = await res.json();
@@ -150,6 +173,8 @@ export function AIAssistantPanel() {
     }
   }
 
+  const modelLabel = apiConfig.model;
+
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-white shadow-sm">
       {/* Header */}
@@ -157,13 +182,15 @@ export function AIAssistantPanel() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
           <Bot className="h-4 w-4 text-indigo-600" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">AI Analyst</p>
-          <p className="text-xs text-muted-foreground">Claims intelligence assistant</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {runLabel ? runLabel : "Claims intelligence assistant"}
+          </p>
         </div>
         <span
           className={cn(
-            "ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium",
+            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
             hasKey ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700",
           )}
         >
@@ -178,15 +205,17 @@ export function AIAssistantPanel() {
             <div className="rounded-lg bg-indigo-50 p-3">
               <div className="flex items-center gap-2 text-xs font-medium text-indigo-700">
                 <Sparkles className="h-3.5 w-3.5" />
-                Powered by GPT-4o mini
+                {modelLabel}
               </div>
               <p className="mt-1 text-xs text-indigo-600">
-                Ask questions about your validation results, get summaries, or draft follow-up emails.
+                {outputRows.length > 0
+                  ? `Loaded ${outputRows.length} claims. Ask anything about this validation run.`
+                  : "Ask questions about your validation results, get summaries, or draft follow-up emails."}
                 {!hasKey && (
                   <>
                     {" "}
                     <Link to="/settings/api-keys" className="underline font-medium">
-                      Add your OpenAI key
+                      Add your API key
                     </Link>{" "}
                     to get started.
                   </>
@@ -279,7 +308,7 @@ export function AIAssistantPanel() {
           </button>
         </div>
         <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-          GPT-4o mini · Responses include your current claims data as context
+          {modelLabel} · Responses include your selected run's claims data as context
         </p>
       </div>
     </div>

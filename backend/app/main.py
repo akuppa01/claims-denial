@@ -16,13 +16,16 @@ Multipart form fields:
 
 from __future__ import annotations
 
+import base64
+import io
 import logging
 import os
 from datetime import datetime, timezone
 
+import pandas as pd
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from .errors import (
     ClaimsBackendError,
@@ -83,6 +86,59 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Row mapping helpers
+# ---------------------------------------------------------------------------
+
+
+def _frontend_status(agent_status: str) -> str:
+    if agent_status == "Closed - Research Complete":
+        return "Valid"
+    if agent_status == "Needs Manual Review":
+        return "Review"
+    return "Invalid"
+
+
+def _frontend_confidence(agent_status: str) -> str:
+    if agent_status in ("Closed - Research Complete", "Ready for Resubmission Review"):
+        return "High"
+    if agent_status == "Needs Manual Review":
+        return "Medium"
+    return "Low"
+
+
+def _build_frontend_rows(processed_rows: list[dict], denial_bytes: bytes) -> list[dict]:
+    """Map backend output rows to the shape the React frontend expects."""
+    claim_lookup: dict[str, dict] = {}
+    try:
+        denial_df = pd.read_excel(io.BytesIO(denial_bytes))
+        for _, r in denial_df.iterrows():
+            cid = str(r.get("Claim_ID", "")).strip()
+            claim_lookup[cid] = {
+                "customer": str(r.get("Customer_ID", "")).strip(),
+                "material": str(r.get("Material_ID", "")).strip(),
+            }
+    except Exception:
+        pass
+
+    result = []
+    for row in processed_rows:
+        claim_id = str(row.get("Claim_ID", ""))
+        extra = claim_lookup.get(claim_id, {})
+        agent_status = str(row.get("Agent_Status", ""))
+        result.append({
+            "claimId": claim_id,
+            "customer": extra.get("customer", ""),
+            "material": extra.get("material", ""),
+            "denialReason": str(row.get("Reason_Code", "")),
+            "validationStatus": _frontend_status(agent_status),
+            "recommendation": str(row.get("Recommended_Next_Action", "")),
+            "confidence": _frontend_confidence(agent_status),
+            "notes": str(row.get("Research_Finding", "")),
+        })
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -176,8 +232,10 @@ async def process_claims_endpoint(
         log.exception("Output generation failed")
         raise HTTPException(status_code=500, detail=f"Output generation error: {exc}")
 
-    return Response(
-        content=excel_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=OutputFile_Generated.xlsx"},
-    )
+    frontend_rows = _build_frontend_rows(processed_rows, denial_bytes)
+    excel_b64 = base64.b64encode(excel_bytes).decode("utf-8")
+
+    return JSONResponse(content={
+        "excel_b64": excel_b64,
+        "rows": frontend_rows,
+    })

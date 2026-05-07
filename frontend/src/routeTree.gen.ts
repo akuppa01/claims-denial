@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsUsageRouteImport } from './routes/settings/usage'
 import { Route as SettingsModelsRouteImport } from './routes/settings/models'
 import { Route as SettingsApiKeysRouteImport } from './routes/settings/api-keys'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 
 const ValidateRoute = ValidateRouteImport.update({
   id: '/validate',
@@ -76,6 +77,11 @@ const SettingsApiKeysRoute = SettingsApiKeysRouteImport.update({
   path: '/settings/api-keys',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/settings/api-keys': typeof SettingsApiKeysRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/usage': typeof SettingsUsageRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/settings/api-keys': typeof SettingsApiKeysRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/usage': typeof SettingsUsageRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/settings/api-keys': typeof SettingsApiKeysRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/usage': typeof SettingsUsageRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/settings/api-keys'
     | '/settings/models'
     | '/settings/usage'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/settings/api-keys'
     | '/settings/models'
     | '/settings/usage'
+    | '/settings'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/settings/api-keys'
     | '/settings/models'
     | '/settings/usage'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   SettingsApiKeysRoute: typeof SettingsApiKeysRoute
   SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsUsageRoute: typeof SettingsUsageRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsApiKeysRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsApiKeysRoute: SettingsApiKeysRoute,
   SettingsModelsRoute: SettingsModelsRoute,
   SettingsUsageRoute: SettingsUsageRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

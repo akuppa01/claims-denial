@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Zap } from "lucide-react";
+import { useState } from "react";
+import { Check, CheckCircle2, Save, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/settings/models")({
   component: ModelsPage,
@@ -22,7 +24,7 @@ const MODELS: ModelOption[] = [
     id: "gpt-4o",
     name: "GPT-4o",
     provider: "OpenAI",
-    description: "Most capable GPT model. Best for complex reasoning and analysis.",
+    description: "Most capable GPT model. Best for complex reasoning and deep analysis.",
     available: true,
   },
   {
@@ -49,26 +51,27 @@ const MODELS: ModelOption[] = [
     available: false,
     badge: "Coming Soon",
   },
-  {
-    id: "auto",
-    name: "Auto Select",
-    provider: "McKesson AI",
-    description: "Automatically selects the best model based on the task complexity.",
-    available: false,
-    badge: "Coming Soon",
-  },
 ];
 
 function ModelsPage() {
   const { selectedModel, setSelectedModel } = useApp();
+  const [pending, setPending] = useState(selectedModel);
+  const [justSaved, setJustSaved] = useState(false);
+
+  const isDirty = pending !== selectedModel;
+
+  function handleSave() {
+    setSelectedModel(pending);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
       <div>
         <h2 className="text-2xl font-semibold text-foreground">LLM Models</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Select the language model powering AI Analyst. API keys are managed securely on the
-          backend.
+          Select the language model powering the AI Analyst. Both models use your OpenAI API key.
         </p>
       </div>
 
@@ -77,11 +80,11 @@ function ModelsPage() {
           <button
             key={model.id}
             disabled={!model.available}
-            onClick={() => model.available && setSelectedModel(model.id)}
+            onClick={() => model.available && setPending(model.id)}
             className={cn(
               "w-full rounded-xl border p-4 text-left transition-all",
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-              selectedModel === model.id
+              pending === model.id
                 ? "border-blue-500 bg-blue-50 shadow-sm"
                 : model.available
                   ? "border-border bg-white hover:border-blue-300 hover:bg-blue-50/30"
@@ -93,7 +96,7 @@ function ModelsPage() {
                 <div
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-lg",
-                    selectedModel === model.id ? "bg-blue-100 text-blue-600" : "bg-muted text-muted-foreground",
+                    pending === model.id ? "bg-blue-100 text-blue-600" : "bg-muted text-muted-foreground",
                   )}
                 >
                   <Zap className="h-4 w-4" />
@@ -118,7 +121,7 @@ function ModelsPage() {
                   <p className="text-xs text-muted-foreground">{model.description}</p>
                 </div>
               </div>
-              {selectedModel === model.id && (
+              {pending === model.id && (
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-600" />
               )}
             </div>
@@ -126,14 +129,45 @@ function ModelsPage() {
         ))}
       </div>
 
+      {/* Save bar */}
+      <div className="flex items-center justify-between rounded-xl border border-border bg-white p-4 shadow-sm">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            {isDirty
+              ? `Switching to ${MODELS.find((m) => m.id === pending)?.name ?? pending}`
+              : `Active: ${MODELS.find((m) => m.id === selectedModel)?.name ?? selectedModel}`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isDirty
+              ? "Click Save to apply this model to the AI Analyst."
+              : "Model is saved and active for the AI Analyst."}
+          </p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={!isDirty && !justSaved}
+          className="gap-1.5 h-9 text-xs min-w-[90px]"
+        >
+          {justSaved ? (
+            <>
+              <Check className="h-3.5 w-3.5" />
+              Saved!
+            </>
+          ) : (
+            <>
+              <Save className="h-3.5 w-3.5" />
+              Save
+            </>
+          )}
+        </Button>
+      </div>
+
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-        <p className="text-xs font-medium text-blue-700">
-          Currently selected:{" "}
-          <strong>{MODELS.find((m) => m.id === selectedModel)?.name ?? selectedModel}</strong>
-        </p>
+        <p className="text-xs font-medium text-blue-700">How model selection works</p>
         <p className="mt-1 text-xs text-blue-600">
-          The model is used by AI Analyst via the backend. Your API key is never exposed in the
-          browser.
+          Both GPT-4o and GPT-4o mini use your OpenAI API key stored in the browser. The AI Analyst
+          calls the OpenAI API directly from your browser — your key is never sent to the McKesson
+          Claims AI backend.
         </p>
       </div>
     </div>

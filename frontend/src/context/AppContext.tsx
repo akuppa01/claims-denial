@@ -34,6 +34,15 @@ export type OutputRow = {
   notes: string;
 };
 
+export type OutputRun = {
+  id: string;
+  label: string;
+  timestamp: Date;
+  outputRows: OutputRow[];
+  downloadUrl: string | null;
+  runNumber: number;
+};
+
 export const FILE_SPECS: Array<{
   key: FileKey;
   label: string;
@@ -94,6 +103,14 @@ export const API_BASE_URL = configuredApiBaseUrl
     ? "http://localhost:8000"
     : "/api";
 
+function loadSelectedModel(): string {
+  try {
+    return localStorage.getItem("selected_model") || "gpt-4o-mini";
+  } catch {
+    return "gpt-4o-mini";
+  }
+}
+
 type AppState = {
   files: Partial<Record<FileKey, File>>;
   fileErrors: Partial<Record<FileKey, string>>;
@@ -102,6 +119,8 @@ type AppState = {
   isProcessing: boolean;
   downloadUrl: string | null;
   outputRows: OutputRow[];
+  outputRuns: OutputRun[];
+  selectedRunId: string | null;
   runError: string | null;
   lastRunAt: Date | null;
   totalClaimsProcessed: number;
@@ -116,6 +135,8 @@ type AppContextValue = AppState & {
   runValidation: () => Promise<void>;
   triggerOutputDownload: () => void;
   setSelectedModel: (model: string) => void;
+  setSelectedRunId: (id: string | null) => void;
+  selectedRun: OutputRun | null;
 };
 
 const initialState: AppState = {
@@ -126,11 +147,13 @@ const initialState: AppState = {
   isProcessing: false,
   downloadUrl: null,
   outputRows: [],
+  outputRuns: [],
+  selectedRunId: null,
   runError: null,
   lastRunAt: null,
   totalClaimsProcessed: 0,
   processingTimeMs: null,
-  selectedModel: "gpt-4o",
+  selectedModel: loadSelectedModel(),
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -180,14 +203,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   function reset() {
+    state.outputRuns.forEach((run) => {
+      if (run.downloadUrl) URL.revokeObjectURL(run.downloadUrl);
+    });
     if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl);
     setState(initialState);
   }
 
   function triggerOutputDownload() {
-    if (!state.downloadUrl) return;
+    const url = state.downloadUrl;
+    if (!url) return;
     const link = document.createElement("a");
-    link.href = state.downloadUrl;
+    link.href = url;
     link.download = "OutputFile_Generated.xlsx";
     document.body.appendChild(link);
     link.click();
@@ -195,7 +222,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   function setSelectedModel(model: string) {
+    try { localStorage.setItem("selected_model", model); } catch {}
     setState((s) => ({ ...s, selectedModel: model }));
+  }
+
+  function setSelectedRunId(id: string | null) {
+    setState((s) => ({ ...s, selectedRunId: id }));
   }
 
   async function getErrorMessage(response: Response): Promise<string> {
@@ -208,12 +240,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return text.trim() || `Server returned ${response.status}`;
   }
 
+  function b64ToBlob(b64: string): Blob {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+  }
+
   async function runValidation() {
     const allUploaded = FILE_SPECS.every((spec) => state.files[spec.key]);
     if (!allUploaded || state.isProcessing) return;
 
     startTimeRef.current = Date.now();
-    if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl);
 
     setState((s) => ({
       ...s,
@@ -221,8 +261,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       runError: null,
       logs: [],
       stages: INITIAL_STAGES.map((stage) => ({ ...stage, status: "pending" as StageStatus })),
-      downloadUrl: null,
-      outputRows: [],
     }));
 
     try {
@@ -300,26 +338,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addLog("Phase 5 — Output generation", "phase");
       addLog("Formatting Excel output with styling", "step");
 
-      const blob = await response.blob();
+      const data = await response.json();
+      const rows: OutputRow[] = data.rows ?? [];
+      const excelB64: string = data.excel_b64 ?? "";
+
+      const blob = b64ToBlob(excelB64);
       const objectUrl = URL.createObjectURL(blob);
       const elapsed = startTimeRef.current ? Date.now() - startTimeRef.current : null;
 
       updateStage("output", "complete");
       const elapsedStr = elapsed ? ` (${(elapsed / 1000).toFixed(1)}s)` : "";
-      addLog(`Pipeline complete — output ready${elapsedStr}`, "success");
+      addLog(`Pipeline complete — ${rows.length} claims processed${elapsedStr}`, "success");
+
+      const runNumber = state.totalClaimsProcessed + 1;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      const newRun: OutputRun = {
+        id: `run-${Date.now()}`,
+        label: `Run ${runNumber} — ${dateStr} ${timeStr}`,
+        timestamp: now,
+        outputRows: rows,
+        downloadUrl: objectUrl,
+        runNumber,
+      };
 
       setState((s) => ({
         ...s,
         downloadUrl: objectUrl,
+        outputRows: rows,
+        outputRuns: [...s.outputRuns, newRun],
+        selectedRunId: newRun.id,
         isProcessing: false,
-        lastRunAt: new Date(),
+        lastRunAt: now,
         totalClaimsProcessed: s.totalClaimsProcessed + 1,
         processingTimeMs: elapsed,
       }));
 
+      // Auto-download
       const link = document.createElement("a");
       link.href = objectUrl;
-      link.download = "OutputFile_Generated.xlsx";
+      link.download = `OutputFile_Run${runNumber}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -337,6 +396,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const selectedRun =
+    state.outputRuns.find((r) => r.id === state.selectedRunId) ??
+    state.outputRuns[state.outputRuns.length - 1] ??
+    null;
+
   const value: AppContextValue = {
     ...state,
     setFile,
@@ -345,6 +409,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     runValidation,
     triggerOutputDownload,
     setSelectedModel,
+    setSelectedRunId,
+    selectedRun,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

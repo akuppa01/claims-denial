@@ -36,14 +36,10 @@ const MAIN_NAV: NavItem[] = [
 ];
 
 const ADMIN_NAV: NavItem[] = [
+  { to: "/settings", icon: <Settings className="h-4 w-4" />, label: "Configuration" },
   { to: "/settings/models", icon: <Zap className="h-4 w-4" />, label: "LLM Models" },
   { to: "/settings/api-keys", icon: <Key className="h-4 w-4" />, label: "API Keys" },
   { to: "/settings/usage", icon: <BarChart3 className="h-4 w-4" />, label: "Usage / Tokens" },
-];
-
-const SUPPORT_NAV: NavItem[] = [
-  { to: "/help", icon: <HelpCircle className="h-4 w-4" />, label: "Help" },
-  { to: "/feedback", icon: <MessageSquare className="h-4 w-4" />, label: "Feedback" },
 ];
 
 function NavSection({
@@ -113,9 +109,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        // Desktop: always visible, collapsible
         "relative flex h-screen flex-col bg-slate-900 transition-all duration-200",
-        // Mobile: fixed overlay, hidden unless open
         "fixed inset-y-0 left-0 z-50 lg:static lg:z-auto",
         mobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         collapsed ? "w-14" : "w-60",
@@ -155,11 +149,33 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto px-2 py-2">
         <NavSection title="Main" items={MAIN_NAV} collapsed={collapsed} />
         <NavSection title="Admin" items={ADMIN_NAV} collapsed={collapsed} />
-        <NavSection title="Support" items={SUPPORT_NAV} collapsed={collapsed} />
       </nav>
 
+      {/* Help & Feedback — compact bottom links */}
+      {!collapsed && (
+        <div className="border-t border-slate-700 px-4 py-2.5 space-y-1">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/help"
+              className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <HelpCircle className="h-3 w-3 shrink-0" />
+              Help
+            </Link>
+            <span className="text-slate-700">·</span>
+            <Link
+              to="/feedback"
+              className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <MessageSquare className="h-3 w-3 shrink-0" />
+              Feedback
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Collapse toggle */}
-      <div className="border-t border-slate-700 p-2">
+      <div className={cn("border-t border-slate-700 p-2", !collapsed && "border-t-0")}>
         <button
           onClick={() => setCollapsed((v) => !v)}
           className={cn(
