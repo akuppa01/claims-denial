@@ -8,7 +8,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [tsconfigPaths(), tanstackStart(), nitro(), react(), tailwindcss()],
   server: {
-    host: "0.0.0.0",
-    port: 8080,
+    host: "localhost",
+    port: 5173,
   },
 });

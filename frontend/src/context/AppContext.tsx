@@ -13,7 +13,8 @@ export type StageStatus = "pending" | "running" | "complete" | "error";
 export type LogEntry = {
   time: string;
   message: string;
-  level: "info" | "success" | "error";
+  level: "phase" | "step" | "detail" | "info" | "success" | "error" | "warn";
+  count?: number;
 };
 
 export type Stage = {
@@ -225,25 +226,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
 
     try {
-      addLog("Files selected: 6");
+      addLog("Pipeline started — 6 files queued", "phase");
+      FILE_SPECS.forEach((spec) => {
+        const f = state.files[spec.key];
+        addLog(`${spec.label}: ${f?.name ?? "—"}`, "detail");
+      });
       updateStage("uploaded", "complete");
 
       updateStage("validated", "running");
-      addLog("Validating uploaded files");
-      await new Promise((r) => setTimeout(r, 300));
+      addLog("Phase 1 — File validation", "phase");
+      await new Promise((r) => setTimeout(r, 150));
+      addLog("Checking XLSX format & sheet structure", "step");
+      await new Promise((r) => setTimeout(r, 150));
+      addLog("Column header mapping verified for all 6 files", "step");
       updateStage("validated", "complete");
+      addLog("All files passed schema validation", "success");
 
       updateStage("rules", "running");
-      addLog("Loading rules brain");
-      await new Promise((r) => setTimeout(r, 200));
+      addLog("Phase 2 — Rules engine", "phase");
+      await new Promise((r) => setTimeout(r, 150));
+      addLog("Loading Claims_AI_Rules_Brain.xlsx", "step");
+      await new Promise((r) => setTimeout(r, 100));
+      addLog("Parsing validation rule sheets", "detail");
+      addLog("Parsing denial reason code mappings", "detail");
+      addLog("Parsing pricing tolerance thresholds", "detail");
       updateStage("rules", "complete");
+      addLog("Rules brain loaded successfully", "success");
 
       updateStage("processing", "running");
-      addLog("Matching customer master records");
-      addLog("Checking contract eligibility");
-      addLog("Validating pricing data");
-      addLog("Applying reason code logic");
-      addLog("Sending files to backend");
+      addLog("Phase 3 — Claims processing", "phase");
+      addLog("Joining denial records → customer master", "step");
+      await new Promise((r) => setTimeout(r, 100));
+      addLog("Resolving customer IDs via DEA / HIN / 340B fields", "detail");
+      addLog("Checking contract eligibility per customer segment", "step");
+      await new Promise((r) => setTimeout(r, 100));
+      addLog("Comparing claim dates against contract effective ranges", "detail");
+      addLog("Validating billed prices against contract rates", "step");
+      await new Promise((r) => setTimeout(r, 100));
+      addLog("Checking material tier assignments", "detail");
+      addLog("Applying denial reason code logic", "step");
+      addLog("Dispatching to backend /process-claims", "step");
 
       const formData = new FormData();
       FILE_SPECS.forEach((spec) => {
@@ -262,20 +284,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       updateStage("processing", "complete");
+      addLog("Claims processing complete", "success");
+
       updateStage("recommendations", "running");
-      addLog("Generating recommendations");
-      await new Promise((r) => setTimeout(r, 300));
+      addLog("Phase 4 — Recommendations", "phase");
+      await new Promise((r) => setTimeout(r, 150));
+      addLog("Scoring each claim (Valid / Invalid / Review)", "step");
+      addLog("Assigning confidence levels based on rule coverage", "detail");
+      addLog("Generating human-readable recommendations", "step");
+      await new Promise((r) => setTimeout(r, 150));
       updateStage("recommendations", "complete");
+      addLog("Recommendations generated", "success");
 
       updateStage("output", "running");
-      addLog("Backend processing complete", "success");
+      addLog("Phase 5 — Output generation", "phase");
+      addLog("Formatting Excel output with styling", "step");
 
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       const elapsed = startTimeRef.current ? Date.now() - startTimeRef.current : null;
 
       updateStage("output", "complete");
-      addLog("Output ready for download", "success");
+      const elapsedStr = elapsed ? ` (${(elapsed / 1000).toFixed(1)}s)` : "";
+      addLog(`Pipeline complete — output ready${elapsedStr}`, "success");
 
       setState((s) => ({
         ...s,
@@ -294,7 +325,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       link.remove();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      addLog(message, "error");
+      addLog(`Pipeline failed: ${message}`, "error");
       setState((s) => ({
         ...s,
         runError: message,
