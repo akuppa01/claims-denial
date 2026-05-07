@@ -3,9 +3,9 @@
 ## Snapshot
 
 - Repo: `claims-denial`
-- Active branch: `feat/latest-integrated-app`
-- Branch lineage:
-  `main` -> `divestiture-additions` -> `feat/agentic-ui` -> `feat/latest-integrated-app`
+- Active branch: `main` (all feature branches merged)
+- Branch lineage (merged):
+  `main` <- `feat/latest-integrated-app` <- `feat/agentic-ui` <- `divestiture-additions`
 - App shape: monorepo with FastAPI backend and TanStack Start frontend
 - Date: `2026-05-06`
 
@@ -72,10 +72,27 @@ Claims Denial/
 - Added dashboard, upload, validate, output, settings, and placeholder routes
 - Preserved the backend upload/process flow
 
+## Vercel Deployment
+
+Production URL: **https://frontend-chi-green-15.vercel.app**
+
+Deploy command (must run from `frontend/` — NOT the repo root):
+
+```bash
+cd "/Users/adi/Desktop/Coding/Misc/Claims Denial/frontend"
+PATH="/Users/adi/.nvm/versions/node/v22.18.0/bin:$PATH" vercel --prod
+```
+
+The `.vercel` project link lives in `frontend/.vercel/` (gitignored). The root
+`vercel.json` uses `experimentalServices` which caused 404 on all routes — deploy
+from `frontend/` directly so Nitro's Vercel preset handles routing natively. The
+backend is not on Vercel; the deployed frontend points to `/api` in production
+(no backend deployed yet, so validation will not work on the hosted URL).
+
 ## Running Locally
 
-Use the `feat/latest-integrated-app` worktree at:
-`/Users/adi/Desktop/Coding/Misc/Claims Denial - latest-integrated-app`
+Use the main worktree at:
+`/Users/adi/Desktop/Coding/Misc/Claims Denial`
 
 **Node 22 is required.** Node 18 (system default) is too old for Vite 7.
 
