@@ -99,7 +99,13 @@ function NavSection({
   );
 }
 
-export function Sidebar() {
+export function Sidebar({
+  mobileSidebarOpen,
+  onMobileClose,
+}: {
+  mobileSidebarOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const { files } = useApp();
   const uploadedCount = FILE_SPECS.filter((spec) => files[spec.key]).length;
@@ -107,7 +113,11 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
+        // Desktop: always visible, collapsible
         "relative flex h-screen flex-col bg-slate-900 transition-all duration-200",
+        // Mobile: fixed overlay, hidden unless open
+        "fixed inset-y-0 left-0 z-50 lg:static lg:z-auto",
+        mobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         collapsed ? "w-14" : "w-60",
       )}
     >

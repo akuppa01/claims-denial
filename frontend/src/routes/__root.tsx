@@ -1,4 +1,5 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import appCss from "../styles.css?url";
 import { AppProvider } from "@/context/AppContext";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -56,13 +57,28 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const routerState = useRouterState();
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [routerState.location.pathname]);
+
   return (
     <AppProvider>
       <div className="flex h-screen overflow-hidden bg-[oklch(0.97_0.005_245)]">
-        <Sidebar />
+        {/* Mobile backdrop */}
+        {mobileSidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
+        <Sidebar mobileSidebarOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <TopBar />
-          <main className="flex-1 overflow-auto p-6">
+          <TopBar onMobileMenuClick={() => setMobileSidebarOpen((v) => !v)} />
+          <main className="flex-1 overflow-auto p-4 sm:p-6">
             <Outlet />
           </main>
         </div>

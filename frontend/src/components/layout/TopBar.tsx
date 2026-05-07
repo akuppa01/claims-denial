@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { Bell, Settings } from "lucide-react";
+import { Bell, Menu, Settings } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useApp } from "@/context/AppContext";
 
@@ -16,15 +16,23 @@ const ROUTE_TITLES: Record<string, string> = {
   "/feedback": "Feedback",
 };
 
-export function TopBar() {
+export function TopBar({ onMobileMenuClick }: { onMobileMenuClick?: () => void }) {
   const routerState = useRouterState();
   const pathname = routerState.location.pathname;
   const title = ROUTE_TITLES[pathname] ?? "Claims AI";
   const { lastRunAt, isProcessing, downloadUrl } = useApp();
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-white px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-white px-4 sm:px-6">
       <div className="flex items-center gap-3">
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={onMobileMenuClick}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         <h1 className="text-base font-semibold text-foreground">{title}</h1>
         {isProcessing && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
