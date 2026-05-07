@@ -55,6 +55,7 @@ def _allowed_origins() -> list[str]:
         return parsed
 
     return [
+        # local dev
         "http://localhost:3000",
         "http://localhost:4173",
         "http://localhost:5173",
@@ -67,6 +68,11 @@ def _allowed_origins() -> list[str]:
         "http://127.0.0.1:8080",
         "http://127.0.0.1:8081",
         "http://127.0.0.1:8082",
+        # production Vercel frontend
+        "https://frontend-chi-green-15.vercel.app",
+        "https://frontend-aditya-ks-projects-89027c29.vercel.app",
+        "https://claims-denial-frontend.vercel.app",
+        "https://claims-denial-frontend-gfosdsmia-aditya-ks-projects-89027c29.vercel.app",
     ]
 
 

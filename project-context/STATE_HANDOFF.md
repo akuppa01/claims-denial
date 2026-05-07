@@ -74,20 +74,39 @@ Claims Denial/
 
 ## Vercel Deployment
 
-Production URL: **https://frontend-chi-green-15.vercel.app**
+### Frontend
+- **Production URL:** https://claims-denial-frontend.vercel.app
+- **Project:** `claims-denial-frontend` (team `aditya-ks-projects-89027c29`)
+- **Env var:** `VITE_API_BASE_URL=https://claims-denial-api-backend.vercel.app` (set in Vercel project)
 
 Deploy command (must run from `frontend/` — NOT the repo root):
 
 ```bash
 cd "/Users/adi/Desktop/Coding/Misc/Claims Denial/frontend"
+PATH="/Users/adi/.nvm/versions/node/v22.18.0/bin:$PATH" vercel --prod --archive=tgz
+```
+
+### Backend
+- **Production URL:** https://claims-denial-api-backend.vercel.app
+- **Project:** `claims-denial-api-backend` (team `aditya-ks-projects-89027c29`)
+- **NOT connected to GitHub** — deploy from a clean temp copy of the `backend/` directory
+
+Deploy command:
+```bash
+cp -r "/Users/adi/Desktop/Coding/Misc/Claims Denial/backend/." /tmp/claims-backend-deploy/
+# Restore the working vercel.json (builds/routes format) since cp overwrites it:
+# vercel.json should use "builds" + "routes" (NOT "functions" + "rewrites")
+cd /tmp/claims-backend-deploy
 PATH="/Users/adi/.nvm/versions/node/v22.18.0/bin:$PATH" vercel --prod
 ```
 
-The `.vercel` project link lives in `frontend/.vercel/` (gitignored). The root
-`vercel.json` uses `experimentalServices` which caused 404 on all routes — deploy
-from `frontend/` directly so Nitro's Vercel preset handles routing natively. The
-backend is not on Vercel; the deployed frontend points to `/api` in production
-(no backend deployed yet, so validation will not work on the hosted URL).
+The `.vercel/project.json` for the temp deploy dir lives at `/tmp/claims-backend-deploy/.vercel/project.json`.
+
+**Critical notes:**
+- Root `vercel.json` uses `experimentalServices` — deploy frontend from `frontend/` directly
+- Backend `vercel.json` must use `builds`/`routes` format (not `functions`/`rewrites`)
+- Backend is deployed from an isolated temp dir (no git root contamination)
+- CORS allowlist in `backend/app/main.py` includes `claims-denial-frontend.vercel.app`
 
 ## Running Locally
 
