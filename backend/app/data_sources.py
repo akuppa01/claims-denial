@@ -51,7 +51,7 @@ class ExcelDataSource(DataSource):
                 buf = io.BytesIO(self._file_bytes)
             else:
                 buf = self._file_bytes
-            self._df = pd.read_excel(buf, sheet_name=self._sheet_name, dtype=str)
+            self._df = pd.read_excel(buf, sheet_name=self._sheet_name, dtype=str, engine="openpyxl")
             self._df.columns = [str(c).strip() for c in self._df.columns]
         return self._df.copy()
 

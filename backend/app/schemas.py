@@ -32,6 +32,12 @@ class ScenarioConfig(BaseModel):
     default_agent_status_no_match: str = "Data Missing"
     default_recommended_next_action: str = ""
     primary_source_display: str = ""   # human-readable label for Primary_Source_Checked
+    all_pass_outcome: str = ""
+    standard_research_finding: str = ""
+    standard_discrepancy_details: str = ""
+    resubmission_next_action: str = ""
+    acceptable_next_action: str = ""
+    secondary_source_display: str = ""
 
 
 # ---------------------------------------------------------------------------

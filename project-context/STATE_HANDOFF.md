@@ -3,9 +3,9 @@
 ## Snapshot
 
 - Repo: `claims-denial`
-- Active branch: `feat/agentic-ui`
+- Active branch: `feat/latest-integrated-app`
 - Branch lineage:
-  `main` -> `divestiture-additions` -> `feat/agentic-ui`
+  `main` -> `divestiture-additions` -> `feat/agentic-ui` -> `feat/latest-integrated-app`
 - App shape: monorepo with FastAPI backend and TanStack Start frontend
 - Date: `2026-05-06`
 
@@ -74,33 +74,29 @@ Claims Denial/
 
 ## Running Locally
 
-### Backend
+Use the `feat/latest-integrated-app` worktree at:
+`/Users/adi/Desktop/Coding/Misc/Claims Denial - latest-integrated-app`
+
+**Node 22 is required.** Node 18 (system default) is too old for Vite 7.
+
+### Quickest start (from worktree root)
 
 ```bash
-cd "/Users/adi/Desktop/Coding/Misc/Claims Denial/backend"
-python3 -m uvicorn app.main:app --reload --port 8000
-```
+cd "/Users/adi/Desktop/Coding/Misc/Claims Denial - latest-integrated-app"
+source ~/.nvm/nvm.sh && nvm use 22.18.0
 
-Health check:
-
-```bash
-curl http://localhost:8000/health
-```
-
-### Frontend
-
-Use Node 22:
-
-```bash
-export PATH="/Users/adi/.nvm/versions/node/v22.18.0/bin:$PATH"
-cd "/Users/adi/Desktop/Coding/Misc/Claims Denial/frontend"
+# First time only
 npm install
-npm run dev
+npm --prefix frontend install
+
+# Both backend + frontend
+python3 -m uvicorn app.main:app --reload --port 8000 --app-dir backend &
+PATH="/Users/adi/.nvm/versions/node/v22.18.0/bin:$PATH" npm --prefix frontend run dev
 ```
 
-Expected local URL:
-
-- `http://localhost:8080`
+Expected local URLs:
+- Backend: `http://localhost:8000`
+- Frontend: `http://localhost:8081` (8080 is often occupied; Vite auto-increments)
 
 ## Test Data
 
@@ -115,11 +111,36 @@ Expected local URL:
   `70 passed, 12 skipped`
 - The earlier broader backend suite on `divestiture-additions` had 131 passing tests before the latest semantic-output changes
 
+## Bug Fixes Applied in This Session (2026-05-06)
+
+These were found and fixed during the first end-to-end local run:
+
+1. **`engine="openpyxl"` missing from all `pd.read_excel()` calls**
+   - `backend/app/rules_loader.py` — `_load_all_sheets()`
+   - `backend/app/data_sources.py` — `ExcelDataSource.get_dataframe()`
+   - Without this, pandas cannot determine the Excel format when reading from
+     raw bytes (no filename to infer from), and raises `ValueError`. Every run
+     was failing silently and returning an empty output file.
+
+2. **`ScenarioConfig` schema missing 6 new fields**
+   - `backend/app/schemas.py` — `ScenarioConfig` model
+   - `rules_loader.py` was populating `all_pass_outcome`, `acceptable_next_action`,
+     `resubmission_next_action`, `standard_research_finding`,
+     `standard_discrepancy_details`, `secondary_source_display` on construction,
+     but those fields didn't exist on the Pydantic model. Pydantic dropped them
+     silently; processor then threw `AttributeError` on every row, every row was
+     skipped, output was empty. Fixed by adding all 6 with empty-string defaults.
+
+3. **CORS allowlist missing port 8081**
+   - `backend/app/main.py` — `_allowed_origins()`
+   - Frontend lands on 8081 when 8080 is occupied. The CORS middleware was
+     blocking all browser API calls. Added 8081 and 8082 to the allowlist.
+
 ## Current Open Work
 
+- Frontend output table shows hardcoded sample rows — not wired to real backend response (backend returns binary Excel, not JSON rows; needs a separate structured JSON endpoint or client-side parse of the blob)
 - Backend still has unresolved mixed-outcome logic for:
   `PRICE_VARIANCE`, `MAT_ATTR_MISMATCH`, `CONTRACT_MISMATCH`, and a few divestiture scenarios
-- Frontend output table still needs real structured output instead of placeholder rows
 - AI analyst/settings pages remain mostly scaffolding
 
 ## Latest Workbook Compare Summary

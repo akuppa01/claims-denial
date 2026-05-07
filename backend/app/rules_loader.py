@@ -128,7 +128,7 @@ def _load_all_sheets(file_bytes: bytes | io.IOBase) -> dict[str, pd.DataFrame]:
         buf = io.BytesIO(file_bytes)
     else:
         buf = file_bytes
-    return pd.read_excel(buf, sheet_name=None, dtype=str)
+    return pd.read_excel(buf, sheet_name=None, dtype=str, engine="openpyxl")
 
 
 def _sheet_lookup(sheets: dict[str, pd.DataFrame]) -> dict[str, str]:
