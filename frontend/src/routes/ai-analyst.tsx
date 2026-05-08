@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/ai-analyst")({
   component: AIAnalystPage,
-  head: () => ({ meta: [{ title: "AI Analyst — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "AI Analyst — ASVA Group Claims AI" }] }),
 });
 
 function StatChip({ label, value, color }: { label: string; value: string | number; color: string }) {

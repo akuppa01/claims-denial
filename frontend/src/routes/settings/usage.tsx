@@ -5,7 +5,7 @@ import { useApp } from "@/context/AppContext";
 
 export const Route = createFileRoute("/settings/usage")({
   component: UsagePage,
-  head: () => ({ meta: [{ title: "Usage & Tokens — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Usage & Tokens — ASVA Group Claims AI" }] }),
 });
 
 const MODEL_LABELS: Record<string, string> = {

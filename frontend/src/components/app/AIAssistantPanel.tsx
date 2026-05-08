@@ -70,7 +70,7 @@ Sample claim records (first 15):
 ${sampleStr || "  None"}`
     : "No validation has been run yet. Note that you are working from sample preview data only.";
 
-  return `You are an AI analyst for a McKesson pharmaceutical claims denial management system. Help users understand validation results, identify patterns, and suggest next steps.
+  return `You are an AI analyst for a ASVA Group claims denial management system. Help users understand validation results, identify patterns, and suggest next steps.
 
 ${dataContext}
 

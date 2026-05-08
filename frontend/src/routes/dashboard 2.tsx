@@ -17,7 +17,7 @@ import { FILE_SPECS } from "@/context/AppContext";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
-  head: () => ({ meta: [{ title: "Dashboard — ASVA Group Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — McKesson Claims AI" }] }),
 });
 
 function Dashboard() {
@@ -66,7 +66,7 @@ function Dashboard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Validation Runs"
           value={totalClaimsProcessed}

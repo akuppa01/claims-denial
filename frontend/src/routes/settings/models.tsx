@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/settings/models")({
   component: ModelsPage,
-  head: () => ({ meta: [{ title: "LLM Models — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "LLM Models — ASVA Group Claims AI" }] }),
 });
 
 type ModelOption = {
@@ -166,7 +166,7 @@ function ModelsPage() {
         <p className="text-xs font-medium text-blue-700">How model selection works</p>
         <p className="mt-1 text-xs text-blue-600">
           Both GPT-4o and GPT-4o mini use your OpenAI API key stored in the browser. The AI Analyst
-          calls the OpenAI API directly from your browser — your key is never sent to the McKesson
+          calls the OpenAI API directly from your browser — your key is never sent to the ASVA Group
           Claims AI backend.
         </p>
       </div>

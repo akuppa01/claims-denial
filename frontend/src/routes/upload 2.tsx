@@ -6,7 +6,7 @@ import { useApp, FILE_SPECS, type FileKey } from "@/context/AppContext";
 
 export const Route = createFileRoute("/upload")({
   component: UploadPage,
-  head: () => ({ meta: [{ title: "Upload Claims — ASVA Group Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Upload Claims — McKesson Claims AI" }] }),
 });
 
 function UploadPage() {
@@ -39,7 +39,7 @@ function UploadPage() {
       </div>
 
       {/* Upload cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {FILE_SPECS.map((spec) => (
           <UploadCard
             key={spec.key}
@@ -113,10 +113,10 @@ function UploadCard({
       )}
     >
       <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex items-center gap-2">
           <div
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+              "flex h-8 w-8 items-center justify-center rounded-lg",
               uploaded ? "bg-green-100 text-green-600" : "bg-blue-50 text-blue-600",
             )}
           >
@@ -126,12 +126,12 @@ function UploadCard({
               <FileSpreadsheet className="h-4 w-4" />
             )}
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-            <p className="truncate text-xs text-muted-foreground">{description}</p>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{label}</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
           {required && (
             <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
               Required

@@ -3,7 +3,7 @@ import { BookOpen, HelpCircle, Mail, Play, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/help")({
   component: HelpPage,
-  head: () => ({ meta: [{ title: "Help — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Help — ASVA Group Claims AI" }] }),
 });
 
 function HelpPage() {
@@ -12,7 +12,7 @@ function HelpPage() {
       <div>
         <h2 className="text-2xl font-semibold text-foreground">Help</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Quick guidance for using McKesson Claims AI.
+          Quick guidance for using ASVA Group Claims AI.
         </p>
       </div>
 

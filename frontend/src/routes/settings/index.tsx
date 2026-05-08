@@ -4,7 +4,7 @@ import { useApp } from "@/context/AppContext";
 
 export const Route = createFileRoute("/settings/")({
   component: SettingsPage,
-  head: () => ({ meta: [{ title: "Settings — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Settings — ASVA Group Claims AI" }] }),
 });
 
 const MODEL_LABELS: Record<string, string> = {
@@ -120,7 +120,7 @@ function SettingsPage() {
         <p className="text-xs text-muted-foreground leading-relaxed">
           API keys are stored in your browser's{" "}
           <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-[11px]">localStorage</code> and
-          sent directly from your browser to OpenAI — they never touch the McKesson Claims AI backend.
+          sent directly from your browser to OpenAI — they never touch the ASVA Group Claims AI backend.
           This is the recommended approach for demos: flexible, secure, and easy to rotate without
           redeployment. Simply paste a key in{" "}
           <Link to="/settings/api-keys" className="underline text-blue-600">API Keys</Link> before

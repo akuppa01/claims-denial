@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/output")({
   component: OutputPage,
-  head: () => ({ meta: [{ title: "Output Viewer — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Output Viewer — ASVA Group Claims AI" }] }),
 });
 
 function RunSelector({

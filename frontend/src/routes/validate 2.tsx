@@ -16,7 +16,7 @@ import { useApp, FILE_SPECS } from "@/context/AppContext";
 
 export const Route = createFileRoute("/validate")({
   component: ValidatePage,
-  head: () => ({ meta: [{ title: "Validation Runs — ASVA Group Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Validation Runs — McKesson Claims AI" }] }),
 });
 
 function ValidatePage() {

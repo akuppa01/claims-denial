@@ -3,7 +3,7 @@ import { Mail, MessageSquare } from "lucide-react";
 
 export const Route = createFileRoute("/feedback")({
   component: FeedbackPage,
-  head: () => ({ meta: [{ title: "Feedback — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "Feedback — ASVA Group Claims AI" }] }),
 });
 
 function FeedbackPage() {

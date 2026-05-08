@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/settings/api-keys")({
   component: APIKeysPage,
-  head: () => ({ meta: [{ title: "API Keys — McKesson Claims AI" }] }),
+  head: () => ({ meta: [{ title: "API Keys — ASVA Group Claims AI" }] }),
 });
 
 type Provider = {
@@ -155,7 +155,7 @@ function APIKeysPage() {
           <p className="text-sm font-semibold text-blue-800">Keys stay in your browser</p>
           <p className="mt-0.5 text-xs text-blue-700">
             API keys are stored in <code className="font-mono">localStorage</code> and sent directly
-            to the provider's API from your browser. They are never sent to the McKesson Claims AI
+            to the provider's API from your browser. They are never sent to the ASVA Group Claims AI
             backend. Clear your browser data to remove them.
           </p>
         </div>

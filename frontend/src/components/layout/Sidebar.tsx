@@ -5,7 +5,6 @@ import {
   Bot,
   ChevronLeft,
   ChevronRight,
-  FileSpreadsheet,
   HelpCircle,
   Key,
   LayoutDashboard,
@@ -178,15 +177,30 @@ export function Sidebar({
           collapsed ? "justify-center px-2" : "gap-2.5 px-4",
         )}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600">
-          <FileSpreadsheet className="h-4 w-4 text-white" />
+        {/* Horse-head mark — simplified SVG matching ASVA Group brand */}
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+          <svg viewBox="0 0 100 100" className="h-8 w-8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Mane flowing lines */}
+            <path d="M18 85 Q10 65 15 45 Q20 25 35 18" stroke="#6366c1" strokeWidth="5" strokeLinecap="round" fill="none"/>
+            <path d="M24 90 Q14 68 20 48 Q26 30 40 22" stroke="#6366c1" strokeWidth="4" strokeLinecap="round" fill="none"/>
+            <path d="M31 93 Q20 72 26 52 Q32 35 46 27" stroke="#6366c1" strokeWidth="3" strokeLinecap="round" fill="none"/>
+            {/* Horse head outline */}
+            <path d="M35 18 Q50 8 65 12 Q78 16 82 28 Q86 38 80 48 Q75 55 68 58 L70 72 Q71 78 65 80 Q59 82 57 76 L55 65 Q45 68 38 62 Q28 54 28 42 Q28 28 35 18Z"
+              stroke="#3b3b9e" strokeWidth="5" strokeLinejoin="round" fill="none"/>
+            {/* Ear */}
+            <path d="M62 12 Q68 5 74 10 Q72 18 65 18" stroke="#3b3b9e" strokeWidth="4" fill="none"/>
+            {/* Eye */}
+            <circle cx="68" cy="32" r="3" fill="#3b3b9e"/>
+            {/* Nostril */}
+            <path d="M76 46 Q79 44 80 48" stroke="#3b3b9e" strokeWidth="3" strokeLinecap="round" fill="none"/>
+          </svg>
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-white">
-              McKesson
+            <div className="text-[13px] font-extrabold tracking-wide text-white leading-tight">
+              ASVA
             </div>
-            <div className="truncate text-[10px] text-slate-400">Claims AI</div>
+            <div className="text-[10px] font-medium text-slate-300 leading-tight">Group Claims AI</div>
           </div>
         )}
       </div>
