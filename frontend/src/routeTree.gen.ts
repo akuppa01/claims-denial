@@ -17,10 +17,10 @@ import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AiAnalystRouteImport } from './routes/ai-analyst'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsUsageRouteImport } from './routes/settings/usage'
 import { Route as SettingsModelsRouteImport } from './routes/settings/models'
 import { Route as SettingsApiKeysRouteImport } from './routes/settings/api-keys'
-import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 
 const ValidateRoute = ValidateRouteImport.update({
   id: '/validate',
@@ -62,6 +62,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsUsageRoute = SettingsUsageRouteImport.update({
   id: '/settings/usage',
   path: '/settings/usage',
@@ -75,11 +80,6 @@ const SettingsModelsRoute = SettingsModelsRouteImport.update({
 const SettingsApiKeysRoute = SettingsApiKeysRouteImport.update({
   id: '/settings/api-keys',
   path: '/settings/api-keys',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -244,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/usage': {
       id: '/settings/usage'
       path: '/settings/usage'
@@ -263,13 +270,6 @@ declare module '@tanstack/react-router' {
       path: '/settings/api-keys'
       fullPath: '/settings/api-keys'
       preLoaderRoute: typeof SettingsApiKeysRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings/': {
-      id: '/settings/'
-      path: '/settings/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
