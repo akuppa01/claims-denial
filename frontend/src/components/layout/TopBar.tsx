@@ -67,8 +67,11 @@ export function TopBar({ onMobileMenuClick }: { onMobileMenuClick?: () => void }
         >
           <Settings className="h-4 w-4" />
         </Link>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
-          MC
+        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-1 pr-3 text-slate-700">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+            AK
+          </div>
+          <span className="hidden text-xs font-medium sm:block">User Access</span>
         </div>
       </div>
     </header>

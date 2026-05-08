@@ -16,11 +16,13 @@ Multipart form fields:
 
 from __future__ import annotations
 
-import base64
 import io
 import logging
 import os
+import time
+import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -41,6 +43,10 @@ from .rules_loader import load_rules_brain
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
+DOWNLOAD_TTL_SECONDS = 60 * 60
+DOWNLOAD_DIR = Path(os.getenv("CLAIMS_DOWNLOAD_DIR", "/tmp/claims-denial-downloads"))
+DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 app = FastAPI(
     title="Claims Denial Validation API",
     description=(
@@ -51,13 +57,31 @@ app = FastAPI(
 )
 
 
-def _allowed_origins() -> list[str]:
-    configured = os.getenv("FRONTEND_CORS_ORIGINS", "")
-    parsed = [origin.strip() for origin in configured.split(",") if origin.strip()]
-    if parsed:
-        return parsed
+def _cleanup_downloads() -> None:
+    cutoff = time.time() - DOWNLOAD_TTL_SECONDS
+    for path in DOWNLOAD_DIR.glob("*.xlsx"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+        except FileNotFoundError:
+            continue
+        except Exception:
+            log.warning("Failed to clean up download artifact %s", path, exc_info=True)
 
-    return [
+
+def _persist_output_excel(excel_bytes: bytes) -> str:
+    _cleanup_downloads()
+    file_id = uuid.uuid4().hex
+    (DOWNLOAD_DIR / f"{file_id}.xlsx").write_bytes(excel_bytes)
+    return file_id
+
+
+def _split_origins(value: str) -> list[str]:
+    return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
+
+
+def _allowed_origins() -> list[str]:
+    origins = {
         # local dev
         "http://localhost:3000",
         "http://localhost:4173",
@@ -71,17 +95,35 @@ def _allowed_origins() -> list[str]:
         "http://127.0.0.1:8080",
         "http://127.0.0.1:8081",
         "http://127.0.0.1:8082",
-        # production Vercel frontend
-        "https://frontend-chi-green-15.vercel.app",
-        "https://frontend-aditya-ks-projects-89027c29.vercel.app",
-        "https://claims-denial-frontend.vercel.app",
-        "https://claims-denial-frontend-gfosdsmia-aditya-ks-projects-89027c29.vercel.app",
-    ]
+    }
+
+    frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if frontend_url:
+        origins.add(frontend_url)
+
+    for env_name in ("CORS_ORIGINS", "FRONTEND_CORS_ORIGINS"):
+        configured = os.getenv(env_name, "")
+        origins.update(_split_origins(configured))
+
+    return sorted(origins)
+
+
+def _allowed_origin_regex() -> str | None:
+    configured = os.getenv("CORS_ORIGIN_REGEX", "").strip()
+    if configured:
+        return configured
+
+    allow_vercel_previews = os.getenv("ALLOW_VERCEL_PREVIEWS", "true").strip().lower()
+    if allow_vercel_previews in {"1", "true", "yes", "on"}:
+        return r"https://.*\.vercel\.app"
+
+    return None
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins(),
+    allow_origin_regex=_allowed_origin_regex(),
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
@@ -233,9 +275,25 @@ async def process_claims_endpoint(
         raise HTTPException(status_code=500, detail=f"Output generation error: {exc}")
 
     frontend_rows = _build_frontend_rows(processed_rows, denial_bytes)
-    excel_b64 = base64.b64encode(excel_bytes).decode("utf-8")
+    file_id = _persist_output_excel(excel_bytes)
 
     return JSONResponse(content={
-        "excel_b64": excel_b64,
         "rows": frontend_rows,
+        "download_url": f"/download-output/{file_id}",
     })
+
+
+@app.get("/download-output/{file_id}")
+async def download_output(file_id: str) -> Response:
+    file_path = DOWNLOAD_DIR / f"{file_id}.xlsx"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Output file not found or has expired.")
+
+    return Response(
+        content=file_path.read_bytes(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": 'attachment; filename="OutputFile_Generated.xlsx"',
+            "Cache-Control": "no-store",
+        },
+    )

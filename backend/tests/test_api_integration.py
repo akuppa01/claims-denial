@@ -95,19 +95,28 @@ def _sample_uploads() -> dict[str, tuple[str, bytes, str]]:
     }
 
 
-def test_process_claims_returns_excel_file():
+def test_process_claims_returns_rows_and_download_url():
     client = TestClient(app)
 
     response = client.post("/process-claims", files=_sample_uploads())
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == (
+    assert response.headers["content-type"] == "application/json"
+
+    payload = response.json()
+    assert isinstance(payload["rows"], list)
+    assert payload["rows"][0]["claimId"] == "CLM001"
+    assert payload["download_url"].startswith("/download-output/")
+
+    download_response = client.get(payload["download_url"])
+    assert download_response.status_code == 200
+    assert download_response.headers["content-type"] == (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    assert response.headers["content-disposition"] == (
-        "attachment; filename=OutputFile_Generated.xlsx"
+    assert download_response.headers["content-disposition"] == (
+        'attachment; filename="OutputFile_Generated.xlsx"'
     )
-    assert response.content[:2] == b"PK"
+    assert download_response.content[:2] == b"PK"
 
 
 def test_process_claims_preflight_allows_vite_origin():
