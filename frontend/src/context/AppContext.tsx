@@ -103,6 +103,37 @@ export const API_BASE_URL = configuredApiBaseUrl
     ? "http://localhost:8000"
     : "/api";
 
+export type SessionTokens = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  messageCount: number;
+};
+
+export const EMPTY_TOKENS: SessionTokens = {
+  promptTokens: 0,
+  completionTokens: 0,
+  totalTokens: 0,
+  estimatedCostUsd: 0,
+  messageCount: 0,
+};
+
+// Pricing per 1M tokens [input, output] — May 2026 published rates
+const MODEL_RATES: Record<string, [number, number]> = {
+  "gpt-4o":      [2.50, 10.00],
+  "gpt-4o-mini": [0.15,  0.60],
+};
+
+export function calcTokenCost(
+  promptTokens: number,
+  completionTokens: number,
+  model: string,
+): number {
+  const [inputRate, outputRate] = MODEL_RATES[model] ?? [2.50, 10.00];
+  return (promptTokens * inputRate + completionTokens * outputRate) / 1_000_000;
+}
+
 function loadSelectedModel(): string {
   try {
     return localStorage.getItem("selected_model") || "gpt-4o-mini";
@@ -126,6 +157,7 @@ type AppState = {
   totalClaimsProcessed: number;
   processingTimeMs: number | null;
   selectedModel: string;
+  sessionTokens: SessionTokens;
 };
 
 type AppContextValue = AppState & {
@@ -137,6 +169,7 @@ type AppContextValue = AppState & {
   setSelectedModel: (model: string) => void;
   setSelectedRunId: (id: string | null) => void;
   selectedRun: OutputRun | null;
+  addTokenUsage: (promptTokens: number, completionTokens: number, model: string) => void;
 };
 
 const initialState: AppState = {
@@ -154,6 +187,7 @@ const initialState: AppState = {
   totalClaimsProcessed: 0,
   processingTimeMs: null,
   selectedModel: loadSelectedModel(),
+  sessionTokens: EMPTY_TOKENS,
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -228,6 +262,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function setSelectedRunId(id: string | null) {
     setState((s) => ({ ...s, selectedRunId: id }));
+  }
+
+  function addTokenUsage(promptTokens: number, completionTokens: number, model: string) {
+    const cost = calcTokenCost(promptTokens, completionTokens, model);
+    setState((s) => ({
+      ...s,
+      sessionTokens: {
+        promptTokens: s.sessionTokens.promptTokens + promptTokens,
+        completionTokens: s.sessionTokens.completionTokens + completionTokens,
+        totalTokens: s.sessionTokens.totalTokens + promptTokens + completionTokens,
+        estimatedCostUsd: s.sessionTokens.estimatedCostUsd + cost,
+        messageCount: s.sessionTokens.messageCount + 1,
+      },
+    }));
   }
 
   async function getErrorMessage(response: Response): Promise<string> {
@@ -411,6 +459,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedModel,
     setSelectedRunId,
     selectedRun,
+    addTokenUsage,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
