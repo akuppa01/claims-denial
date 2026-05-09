@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "tanstack-start",
   "rewrites": [
-    { "source": "/((?!_build|assets|_shell|favicon\\.ico).*)", "destination": "/_shell" }
+    { "source": "/((?!_build|assets|_shell|favicon\\.ico).*)", "destination": "/_shell.html" }
   ]
 }
