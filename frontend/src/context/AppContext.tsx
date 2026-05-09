@@ -142,6 +142,17 @@ function loadSelectedModel(): string {
   }
 }
 
+function resolveApiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function revokeIfBlobUrl(url: string | null) {
+  if (url?.startsWith("blob:")) {
+    URL.revokeObjectURL(url);
+  }
+}
+
 type AppState = {
   files: Partial<Record<FileKey, File>>;
   fileErrors: Partial<Record<FileKey, string>>;
@@ -238,9 +249,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function reset() {
     state.outputRuns.forEach((run) => {
-      if (run.downloadUrl) URL.revokeObjectURL(run.downloadUrl);
+      revokeIfBlobUrl(run.downloadUrl);
     });
-    if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl);
+    revokeIfBlobUrl(state.downloadUrl);
     setState(initialState);
   }
 
@@ -286,15 +297,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     const text = await response.text().catch(() => "");
     return text.trim() || `Server returned ${response.status}`;
-  }
-
-  function b64ToBlob(b64: string): Blob {
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return new Blob([bytes], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
   }
 
   async function runValidation() {
@@ -388,10 +390,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json();
       const rows: OutputRow[] = data.rows ?? [];
-      const excelB64: string = data.excel_b64 ?? "";
-
-      const blob = b64ToBlob(excelB64);
-      const objectUrl = URL.createObjectURL(blob);
+      const downloadUrl = resolveApiUrl(data.download_url ?? "");
       const elapsed = startTimeRef.current ? Date.now() - startTimeRef.current : null;
 
       updateStage("output", "complete");
@@ -407,13 +406,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         label: `Run ${runNumber} — ${dateStr} ${timeStr}`,
         timestamp: now,
         outputRows: rows,
-        downloadUrl: objectUrl,
+        downloadUrl,
         runNumber,
       };
 
       setState((s) => ({
         ...s,
-        downloadUrl: objectUrl,
+        downloadUrl,
         outputRows: rows,
         outputRuns: [...s.outputRuns, newRun],
         selectedRunId: newRun.id,
@@ -425,7 +424,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Auto-download
       const link = document.createElement("a");
-      link.href = objectUrl;
+      link.href = downloadUrl;
       link.download = `OutputFile_Run${runNumber}.xlsx`;
       document.body.appendChild(link);
       link.click();
