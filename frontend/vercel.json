@@ -1,10 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "tanstack-start",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://claims-denial-backend.vercel.app/:path*"
-    }
-  ]
+  "framework": "tanstack-start"
 }
